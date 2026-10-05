@@ -12,7 +12,7 @@ PDF: seven day columns, one card per task, red for the decisions waiting on you.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.1.1**
+**Version 0.1.1** · **66 tests, all passing** · **reviewed by a second agent: APPROVED** · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -75,16 +75,62 @@ python3 skills/week-planner/scripts/draw_week.py my-plan.json --check      # che
 
 The plan file format is in `skills/week-planner/references/plan-format.md`.
 
-## Test
+## Proof: how we know it works
+
+We do not call it built until it is proven. Everything below can be checked.
+
+### 66 automated tests, all passing
+
+Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back):
 
 ```bash
 python3 -B -m unittest discover -s tests
 ```
 
-66 checks: the plan rules and their plain refusals (overfilled day, no buffer, too much for a weekend, a
-half-marked review, emoji, wrong dates and hours, carried-over items and their links); the board geometry judged by independent rectangle maths
-(every card inside its column, nothing overlapping, every line fits, "1 h" never split); and the drawn PDFs
-read back with `pdftotext` (skipped where poppler is missing).
+On version 0.1.1 (Python 3.9.6, ReportLab 5.0.0): **66 passed, 0 skipped, 0 failed.**
+
+| What is tested | Tests |
+|---|---:|
+| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links | 36 |
+| The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split | 7 |
+| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file | 23 |
+| **Total** | **66** |
+
+### Reviewed by a second agent
+
+A second AI agent, Codex, reviewed the skill in a fresh session: it had not watched the build and checked
+everything from the repository itself. Over five rounds it found **7 real problems**. Each was fixed with a
+test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**.
+
+| Finding | What was wrong | Closed in round |
+|---|---|---:|
+| F01 | A carried-over task could be lost, listed twice, or come back after it was done | 4 |
+| F02 | A weekend demanded a personal item, though personal items are optional | 2 |
+| F03 | A long title and website could run into the page number | 2 |
+| F04 | NaN or infinite hours crashed the tool instead of being refused | 2 |
+| F05 | A huge number of hours crashed the tool instead of being refused | 3 |
+| B04 | Previewing the pages could overwrite a file named `page-1.png` | 4 |
+| B06 | "Planned" left out buffer time in some places but not others | 5 |
+
+On top of the tests, the reviewer ran its own stress checks; it reported, for example, 7,056 carried-over
+combinations and 1,050 footer combinations with no failures. Every finding and its fix is in
+[CHANGELOG.md](CHANGELOG.md).
+
+### Tried for real
+
+The final version was also used the way a person uses it. A fresh agent (once Claude, once Codex) got only
+the skill's instructions and a scripted person: "plan my week" with a carried-over task too long for a card,
+then "review my week". Each time it asked its questions first, read the plan back and waited for a yes,
+linked the shortened task on its own, and drew a review with the right totals and score.
+
+### Not tested yet
+
+So you know exactly what the proof covers:
+
+- The skill being picked up on its own inside the native Claude and Codex apps, and their clickable answers.
+- Uploading the zip to the Claude app.
+- The chat-only table, where code cannot run.
+- A real Backloop board (a made-up board was used).
 
 ## Limits
 

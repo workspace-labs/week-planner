@@ -3,6 +3,13 @@
 All notable changes to this project. The version is `VERSION` in
 `skills/week-planner/scripts/week_tool/__init__.py`.
 
+## [Unreleased]
+
+### Docs
+
+- README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
+  findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
+
 ## [0.1.1] - 2026-10-05
 
 Fixes from Codex's review of 0.1.0 (candidate 16b33da), over five rounds.
