@@ -47,11 +47,11 @@ class Draws(unittest.TestCase):
 
     def test_week_has_board_and_focus(self):
         out = self.draw("week")
-        self.assertEqual(pages(out), 2)
+        self.assertEqual(pages(out), 1, "a light week's focus fits under the board")
         if HAS_POPPLER:
             text = self.words(out)
             for word in ("This week", "WEEK PLAN", "#1 GOAL", "Choose the new", "Buffer", "WAITING ON YOU",
-                         "CARRIED OVER", "Page 1 of 2", "16 h planned of 18.5 h free"):
+                         "CARRIED OVER", "Page 1 of 1", "16 h planned of 18.5 h free"):
                 self.assertIn(word, text)
 
     def test_review_scores_and_moves_on(self):
@@ -61,7 +61,7 @@ class Draws(unittest.TestCase):
             for word in ("WEEK REVIEW", "7 of 10 done", "MOVES TO NEXT WEEK", "Update the weekly sales sheet",
                          "Book the dentist appointment"):
                 self.assertIn(word, text)
-            focus = text.split("How the week")[1]
+            focus = text.split("SCORE")[1]
             self.assertNotIn("Choose the new logo", focus.split("MOVES")[0].split("WAITING ON YOU")[-1],
                              "a decision made this week is no longer waiting")
 
@@ -78,6 +78,96 @@ class Draws(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("Drew 1 page:", stdout)
         self.assertTrue(os.path.exists(os.path.join(self.tmp, "Week Plan 2026-10-04.pdf")))
+
+
+class OnePage(unittest.TestCase):
+    """0.2.0: columns end under the busiest day and the focus lists go below the board when they fit."""
+
+    def draw(self, data):
+        from week_tool import brand, layout, model, pages as tool_pages, theme
+        theme.register_fonts()
+        plan = model.parse(data)
+        columns = layout.lay_out(plan)
+        tmp = tempfile.mkdtemp()
+        out = os.path.join(tmp, "p.pdf")
+        try:
+            tool_pages.build(plan, columns, brand.load(), out)
+            html = subprocess.run(["pdftotext", "-bbox", out, "-"], capture_output=True, text=True,
+                                  check=True).stdout if HAS_POPPLER else ""
+            return columns, pages(out), html
+        finally:
+            shutil.rmtree(tmp)
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_focus_under_the_board_never_touches_it_or_the_footer(self):
+        from week_tool import layout
+        for path in support.examples():
+            with open(path) as handle:
+                columns, count, html = self.draw(json.load(handle))
+            self.assertEqual(count, 1, path)
+            first = html.split("</page>")[0]
+            heads = [float(y) for y, w in re.findall(r'yMin="([\d.]+)" xMax="[\d.]+" yMax="[\d.]+">([A-Z]+)</word>', first)
+                     if w in ("TOP", "WAITING", "MOVES", "CARRIED", "SCORE")]
+            board_bottom = layout.PAGE_H - columns[0].bottom
+            with self.subTest(path=path):
+                self.assertTrue(heads, "the focus lists are on page 1")
+                self.assertTrue(all(y > board_bottom for y in heads), "below the board")
+                self.assertTrue(all(y < layout.PAGE_H - 56 for y in heads), "above the footer")
+
+    def test_packed_week_keeps_the_second_page(self):
+        data = support.plan(goals=["Ship it"])
+        data["days"][1]["free_hours"] = 8
+        data["days"][1]["items"] = [{"title": "A task with a fairly long title that wraps %d" % n, "hours": 1}
+                                    for n in range(8)]
+        columns, count, html = self.draw(data)
+        from week_tool import layout
+        self.assertLess(columns[0].bottom, layout.BOARD_BOTTOM + 60)
+        self.assertEqual(count, 2)
+        if HAS_POPPLER:
+            self.assertIn("focus", html)
+
+
+class GoalRows(unittest.TestCase):
+    """0.2.0: under a goal, the person's why and done-when, and a 'This week' line counted from the cards."""
+
+    def rows(self, data):
+        from week_tool import model, pages
+        p = model.parse(data)
+        return pages.goal_rows(p, p.goal_details[0])
+
+    def data(self, reviewed=False):
+        data = support.plan(goals=[{"goal": "Ship the checks", "why": "It proves the work", "project": "Checks"}])
+        data["days"][0]["items"][0]["project"] = "Checks"
+        data["days"][1]["items"][0]["project"] = "Checks"
+        if reviewed:
+            data["days"][0]["items"][0]["done"] = True
+            data["days"][1]["items"][0]["done"] = False
+        return data
+
+    def test_counted_from_the_cards(self):
+        self.assertEqual(self.rows(self.data()), [("Why", "It proves the work"),
+                                                  ("This week", "2 tasks · 3 h · Sun to Mon")])
+
+    def test_review_counts_done(self):
+        self.assertEqual(self.rows(self.data(True))[-1], ("This week", "1 of 2 done · 3 h · Sun to Mon"))
+
+    def test_nothing_given_nothing_shown(self):
+        self.assertEqual(self.rows(support.plan(goals=["Ship it"])), [])
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_rows_are_drawn(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            path, out = os.path.join(tmp, "p.json"), os.path.join(tmp, "p.pdf")
+            with open(path, "w") as handle:
+                json.dump(self.data(), handle)
+            self.assertEqual(run(path, "-o", out)[0], 0)
+            text = subprocess.run(["pdftotext", out, "-"], capture_output=True, text=True, check=True).stdout
+            for words in ("Why", "It proves the work", "This week", "2 tasks"):
+                self.assertIn(words, text)
+            self.assertNotIn("Done when", text, "a row the person did not give is left out")
+        finally:
+            shutil.rmtree(tmp)
 
 
 class Focus(unittest.TestCase):

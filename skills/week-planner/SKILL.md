@@ -43,6 +43,11 @@ what you do not already know.
 
 1. **Free time:** how many hours, and which days are free or off? (Per day if they know it.)
 2. **The #1 goal:** offer their real projects to click. Up to two more goals are optional.
+   **Then, for each goal, understand it:** ask *"Why does it matter to you?"* and *"How will you know it's
+   done?"* (offer a few likely answers to click, always with a way to type their own). Write their answers
+   short, in their words, as the goal's `why` and `done_when`; never invent one, and leave out a question
+   they skip. Give the goal the `project` of the cards that serve it, so the board counts its tasks and
+   hours for them ("This week: 4 tasks · 6.5 h · Mon to Wed").
 3. **Personal items:** add some, or skip?
 4. Weekend flow only: **which days are your weekend?**
 
@@ -64,7 +69,7 @@ what you do not already know.
 
 ## 4. Read it back
 
-Say the plan day by day in plain words ("Sunday: choose the new logo, 1 hour. Monday: ...") and the
+Say the goal with its why and done-when, then the plan day by day in plain words ("Sunday: choose the new logo, 1 hour. Monday: ...") and the
 total hours. Wait for their yes. Change what they ask and read it back again. Never draw before the yes.
 
 ## 5. Deliver

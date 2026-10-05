@@ -11,7 +11,8 @@ PAGE_W, PAGE_H = 841.89, 595.28        # A4 landscape
 MARGIN = 30.0
 GAP = 8.0                              # between day columns
 MAX_COL_W = 200.0                      # a weekend's 2 columns stay card-shaped, centred
-BOARD_BOTTOM = 52.0                    # the footer sits below this
+BOARD_BOTTOM = 52.0                    # the footer sits below this: the lowest a column may reach
+MIN_COL_H = 150.0                      # a light week's columns still read as columns
 COL_PAD = 6.0
 HEADER_H = 42.0                        # weekday + date number at the top of a column
 TOTAL_H = 18.0                         # "2.5 of 3 h" at the bottom of a column
@@ -58,6 +59,10 @@ def lay_out(plan):
         columns.append(Column(day, x, col_w, top, BOARD_BOTTOM, cards, total))
     if problems:
         raise PlanError(problems)
+    # Every column ends together, just under the busiest day, so a light week leaves room below the board.
+    bottom = min(top - MIN_COL_H, min(c.cards[-1].y if c.cards else top - HEADER_H for c in columns) - TOTAL_H - 4.0)
+    for column in columns:
+        column.bottom = max(BOARD_BOTTOM, bottom)
     return columns
 
 

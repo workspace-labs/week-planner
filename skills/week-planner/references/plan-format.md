@@ -30,8 +30,24 @@ One JSON object. The drawing tool refuses any unknown field by name, so a typo n
 | `days` | yes | 1 to 7 days (weekend: 1 to 3), one after another with none missing. |
 | `mode` | no | `"week"` (default) or `"weekend"`. |
 | `title` | no | Up to 40 characters; its last word is drawn in blue. Default "This week" or "This weekend". |
-| `goals` | no | Up to 3 short sentences (70 characters each). The first is the #1 goal, shown in a band on the board. |
+| `goals` | no | Up to 3 goals. Each is a short sentence (70 characters), or a goal object (below). The first is the #1 goal, shown in a band on the board. |
 | `carried_over` | no | Up to 8 items carried from last week (70 characters each), in their exact words, each once. |
+
+## A goal object
+
+```json
+{"goal": "Docker skill passes round 4", "why": "Proof the skill is professional",
+ "done_when": "Codex says APPROVED", "project": "Docker skill"}
+```
+
+| Field | Needed | What it is |
+|---|---|---|
+| `goal` | yes | The goal, up to 70 characters. |
+| `why` | no | Why it matters, in the person's words, up to 90 characters. |
+| `done_when` | no | How they will know it is done, in their words, up to 90 characters. |
+| `project` | no | The `project` of the cards that serve this goal (capital letters aside). The board counts those cards under the goal: "4 tasks · 6.5 h · Mon to Wed", or "3 of 4 done" in a review. A project no card has is refused. |
+
+Under the goal, the PDF shows a labelled line for each one given: **Why**, **Done when**, **This week**.
 
 ## A day
 

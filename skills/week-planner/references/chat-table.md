@@ -4,7 +4,8 @@ Where code cannot run, hand the plan over in this shape. Keep the same order and
 
 ```markdown
 **This week** · Sun 4 Oct – Sat 10 Oct 2026 · 16 h planned of 18.5 h free
-**#1 goal:** Deliver the client report
+**#1 goal:** Deliver the client report · Why: the client signs off this month · Done when: the client
+says yes · This week: 3 tasks · 6 h · Mon to Thu
 
 | Day | Plan | Hours |
 |---|---|---:|

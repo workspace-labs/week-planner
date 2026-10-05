@@ -15,6 +15,7 @@ MODES = ("week", "weekend")
 _PLAN_KEYS = {"title", "mode", "goals", "carried_over", "days"}
 _DAY_KEYS = {"date", "free_hours", "off", "items"}
 _ITEM_KEYS = {"title", "kind", "stage", "project", "hours", "done", "from_last_week"}
+_GOAL_KEYS = {"goal", "why", "done_when", "project"}
 WEEKEND_MOST_TASKS = 3
 
 
@@ -37,6 +38,14 @@ class Item(object):
         return self.kind != "buffer"
 
 
+class Goal(object):
+    """A goal in the person's words: why it matters, how they will know it is done, and the project whose
+    cards serve it this week. Only the goal itself is needed."""
+
+    def __init__(self, text, why="", done_when="", project=""):
+        self.text, self.why, self.done_when, self.project = text, why, done_when, project
+
+
 class Day(object):
     def __init__(self, date, free_hours, off, items):
         self.date, self.free_hours, self.off, self.items = date, free_hours, off, items
@@ -47,8 +56,16 @@ class Day(object):
 
 
 class Plan(object):
-    def __init__(self, title, mode, goals, carried_over, days):
+    def __init__(self, title, mode, goals, carried_over, days, goal_details=None):
         self.title, self.mode, self.goals, self.carried_over, self.days = title, mode, goals, carried_over, days
+        self.goal_details = goal_details or [Goal(g) for g in goals]     # goals stays the plain words
+
+    def goal_cards(self, goal):
+        """The days and cards of this week that serve a goal: the work whose project is the goal's project."""
+        if not goal.project:
+            return []
+        return [(d, i) for d in self.days for i in d.items if i.counts and i.project
+                and same_words(i.project) == same_words(goal.project)]
 
     @property
     def work(self):
@@ -102,7 +119,8 @@ def parse(data):
         problems.append('"mode" must be "week" or "weekend"; it is %s.' % describe(mode))
         mode = "week"
     title = _text(data, "title", 40, "The plan", problems) or ("This weekend" if mode == "weekend" else "This week")
-    goals = _texts(data, "goals", 3, 70, problems)
+    details = _goals(data, problems)
+    goals = [g.text for g in details]
     carried = _texts(data, "carried_over", 8, 70, problems)
 
     raw_days = data.get("days")
@@ -116,7 +134,7 @@ def parse(data):
     days = [_day(raw, n, problems) for n, raw in enumerate(raw_days, 1)]
     days = [d for d in days if d]
     _check_dates(days, problems)
-    plan = Plan(title, mode, goals, carried, days)
+    plan = Plan(title, mode, goals, carried, days, details)
     _check_plan(plan, problems)
     if problems:
         raise PlanError(problems)
@@ -225,12 +243,17 @@ def _check_plan(plan, problems):
             problems.append('Carried-over "%s" is on %d cards: %s. One carried-over item goes on one card; give the '
                             'others a title of their own and no "from_last_week" to it.'
                             % (source, len(titles), ", ".join('"%s"' % t for t in titles)))
+    for n, goal in enumerate(plan.goal_details, 1):
+        if goal.project and not plan.goal_cards(goal):
+            problems.append('Goal %d names the project "%s", but no card this week has that project. Give its cards '
+                            'that "project", or correct the name.' % (n, goal.project))
     if plan.reviewed:
         unmarked = [i.title for i in plan.work if i.done is None]
         if unmarked:
             problems.append('The week is being reviewed, so every item needs "done": true or false. Not marked yet: %s.'
                             % "; ".join(unmarked))
-    texts = [plan.title] + plan.goals + plan.carried_over
+    texts = [plan.title] + plan.carried_over
+    texts += [t for g in plan.goal_details for t in (g.text, g.why, g.done_when, g.project) if t]
     texts += [t for d in plan.days for i in d.items for t in (i.title, i.project, i.from_last_week) if t]
     missing = sorted(set(ch for t in texts for ch in theme.missing_characters(t)))
     if missing:
@@ -270,6 +293,33 @@ def _texts(data, key, most, limit, problems):
         text = _text({key: entry}, key, limit, "%s %d" % (key.replace("_", " ").capitalize(), n), problems)
         if text:
             out.append(text)
+    return out
+
+
+def _goals(data, problems):
+    """Each goal is a short sentence, or an object with "goal" and, if the person gave them, "why",
+    "done_when" and "project"."""
+    value = data.get("goals", [])
+    if not isinstance(value, list):
+        problems.append('"goals" must be a list of short sentences.')
+        return []
+    if len(value) > 3:
+        problems.append('"goals" holds at most 3; it has %d.' % len(value))
+    out = []
+    for n, entry in enumerate(value[:3], 1):
+        where = "Goal %d" % n
+        if isinstance(entry, dict):
+            _unknown(entry, _GOAL_KEYS, where, problems)
+            text = _text(entry, "goal", 70, where, problems)
+            if not text:
+                problems.append('%s needs its words in "goal".' % where)
+                continue
+            out.append(Goal(text, _text(entry, "why", 90, where, problems),
+                            _text(entry, "done_when", 90, where, problems), _text(entry, "project", 24, where, problems)))
+        else:
+            text = _text({"goals": entry}, "goals", 70, where, problems)
+            if text:
+                out.append(Goal(text))
     return out
 
 

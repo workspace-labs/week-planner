@@ -2,7 +2,12 @@
   "title": "This week",
   "mode": "week",
   "goals": [
-    "Deliver the client report",
+    {
+      "goal": "Deliver the client report",
+      "why": "The client signs off this month",
+      "done_when": "The client says yes",
+      "project": "Client work"
+    },
     "Choose the new logo for the brand",
     "Launch the new website and share it"
   ],

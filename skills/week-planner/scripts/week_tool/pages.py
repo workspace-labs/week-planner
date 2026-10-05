@@ -14,21 +14,31 @@ from .model import PlanError, day_name, hours_text
 FOCUS_TOP = PAGE_H - 160.0
 FOCUS_BOTTOM = 56.0
 SECTION_GAP = 26.0
+BELOW_GAP = 16.0                        # between the board and the focus lists drawn under it
+SCORE_H = 26.0
+ROW_LABEL_W = 54.0                      # "Done when" and its siblings, before the goal's own words
 _logos = {}
 
 
 # ------------------------------------------------------------------ the whole PDF
 
 def build(plan, columns, brand, out_path):
-    """Draws the PDF and returns how many pages it has."""
+    """Draws the PDF and returns how many pages it has: one when the focus fits under the board."""
     sections = focus_sections(plan)
-    total = 2 if sections else 1
+    inline = bool(sections) and focus_fits_below(plan, columns)
+    total = 2 if sections and not inline else 1
     c = canvas.Canvas(out_path, pagesize=(PAGE_W, PAGE_H))
     c.setTitle("%s - %s" % (plan.title, date_range(plan)))
     c.setAuthor(brand.name)
     c.setCreator("week-planner %s" % VERSION)
     _board_page(c, plan, columns, brand, total)
-    if sections:
+    if inline:
+        top = columns[0].bottom - BELOW_GAP
+        if plan.reviewed:
+            _score(c, plan, top - SCORE_H)
+            top -= SCORE_H + BELOW_GAP
+        _sections(c, sections, focus_room(plan), top - 8.0)
+    elif sections:
         c.showPage()
         _focus_page(c, plan, sections, brand, total)
     c.showPage()
@@ -196,7 +206,7 @@ def focus_sections(plan):
     sections are left out, and no sections means no second page."""
     sections = []
     if plan.goals:
-        sections.append(("TOP GOALS", [(str(n), g, "") for n, g in enumerate(plan.goals, 1)]))
+        sections.append(("TOP GOALS", [(str(n), g.text, goal_rows(plan, g)) for n, g in enumerate(plan.goal_details, 1)]))
     # A decision made this week is no longer waiting; one still open shows here once, not twice.
     waiting = [(d, i) for d, i in plan.decisions if not i.done]
     if waiting:
@@ -215,6 +225,38 @@ def focus_sections(plan):
     return sections
 
 
+def goal_rows(plan, goal):
+    """The labelled lines under a goal, each only when there is something for it. 'This week' is counted
+    from the cards of the goal's project, never typed."""
+    rows = [(label, text) for label, text in (("Why", goal.why), ("Done when", goal.done_when)) if text]
+    cards = plan.goal_cards(goal)
+    if cards:
+        work = [i for _, i in cards]
+        days = []
+        for d, _ in cards:
+            name = day_name(d.date).split()[0]
+            if name not in days:
+                days.append(name)
+        if plan.reviewed:
+            count = "%d of %d done" % (sum(1 for i in work if i.done), len(work))
+        else:
+            count = "%d task%s" % (len(work), "" if len(work) == 1 else "s")
+        span = days[0] if len(days) == 1 else "%s to %s" % (days[0], days[-1])
+        rows.append(("This week", "%s · %s · %s" % (count, hours_text(sum(i.hours for i in work)), span)))
+    return rows
+
+
+def _rows_wrapped(rows, room):
+    """Each row's words wrapped beside its label; None when a single word cannot fit."""
+    out = []
+    for label, text in rows:
+        lines = theme.wrap(text, theme.GOAL_ROW[0], theme.GOAL_ROW[1], room - ROW_LABEL_W)
+        if lines is None:
+            return None
+        out.append((label, lines))
+    return out
+
+
 def focus_room(plan):
     n = max(len(focus_sections(plan)), 1)
     return (PAGE_W - 2 * MARGIN - SECTION_GAP * (n - 1)) / n
@@ -228,18 +270,42 @@ def check_focus(plan):
         y = FOCUS_TOP - 24.0
         for _, text, small in entries:
             lines = theme.wrap(text, theme.LIST_TEXT[0], theme.LIST_TEXT[1], room)
-            if lines is None:
-                problems.append('A single word in "%s" is too wide for the focus page. Add a space or shorten it.' % text)
+            if lines is None or (isinstance(small, list) and _rows_wrapped(small, room) is None):
+                problems.append('A single word in "%s" (or its why or done-when) is too wide for the focus page. '
+                                'Add a space or shorten it.' % text)
                 continue
-            y -= _entry_height(lines, small)
+            y -= _entry_height(lines, small, room)
         if y < FOCUS_BOTTOM:
             problems.append('The "%s" list is too long for the focus page. Keep fewer, or shorten them.'
                             % heading.capitalize())
     return problems
 
 
-def _entry_height(lines, small):
-    return len(lines) * theme.LIST_TEXT[2] + (theme.LIST_SMALL[2] if small else 0) + 10.0
+def focus_height(plan):
+    """How tall the focus lists are (and the score, on a review), from the top of their headings."""
+    room = focus_room(plan) - 26.0
+    tallest = 0.0
+    for _, entries in focus_sections(plan):
+        h = 24.0
+        for _, text, small in entries:
+            h += _entry_height(theme.wrap(text, theme.LIST_TEXT[0], theme.LIST_TEXT[1], room) or [text], small, room)
+        tallest = max(tallest, h - (10.0 if entries else 0.0))     # no gap is drawn after the last entry
+    return tallest + (SCORE_H + BELOW_GAP if plan.reviewed else 0.0)
+
+
+def focus_fits_below(plan, columns):
+    """True when the focus lists fit between the board and the footer, so the plan is one page."""
+    return columns[0].bottom - BELOW_GAP - 8.0 - focus_height(plan) >= FOCUS_BOTTOM
+
+
+def _entry_height(lines, small, room):
+    """small is a quiet line of text, or a goal's labelled rows."""
+    if isinstance(small, list):
+        rows = _rows_wrapped(small, room) or []
+        extra = sum(len(r) for _, r in rows) * theme.GOAL_ROW[2] + (4.0 if rows else 0.0)
+    else:
+        extra = theme.LIST_SMALL[2] if small else 0
+    return len(lines) * theme.LIST_TEXT[2] + extra + 10.0
 
 
 def _focus_page(c, plan, sections, brand, total):
@@ -249,16 +315,21 @@ def _focus_page(c, plan, sections, brand, total):
     c.setFont(theme.MEDIUM, 9.5)
     c.drawString(MARGIN, PAGE_H - 98.0, summary_line(plan))
     if plan.reviewed:
-        _score(c, plan)
-    w = focus_room(plan)
+        _score(c, plan, PAGE_H - 140.0)
+    _sections(c, sections, focus_room(plan), FOCUS_TOP)
+    _footer(c, plan, brand, 2, total)
+
+
+def _sections(c, sections, w, top):
+    """The focus lists side by side, their headings' baseline at top."""
     for n, (heading, entries) in enumerate(sections):
         x = MARGIN + n * (w + SECTION_GAP)
         color = theme.RED if heading == "WAITING ON YOU" else theme.INK_FAINT
-        _tracked(c, heading, x, FOCUS_TOP, theme.BOLD, 7.0, color, 1.4)
+        _tracked(c, heading, x, top, theme.BOLD, 7.0, color, 1.4)
         c.setStrokeColor(theme.LINE)
         c.setLineWidth(0.6)
-        c.line(x, FOCUS_TOP - 8.0, x + w, FOCUS_TOP - 8.0)
-        y = FOCUS_TOP - 24.0
+        c.line(x, top - 8.0, x + w, top - 8.0)
+        y = top - 24.0
         for marker, text, small in entries:
             lines = theme.wrap(text, theme.LIST_TEXT[0], theme.LIST_TEXT[1], w - 26.0)
             _marker(c, marker, x + 7.0, y + 3.2)
@@ -268,22 +339,31 @@ def _focus_page(c, plan, sections, brand, total):
             for line in lines:
                 c.drawString(x + 26.0, yy, line)
                 yy -= theme.LIST_TEXT[2]
-            if small:
+            if isinstance(small, list):
+                yy -= 4.0
+                for label, row in _rows_wrapped(small, w - 26.0) or []:
+                    c.setFillColor(theme.INK_FAINT)
+                    c.setFont(*theme.GOAL_LABEL)
+                    c.drawString(x + 26.0, yy + 2.0, label)
+                    c.setFillColor(theme.INK_SOFT)
+                    c.setFont(theme.GOAL_ROW[0], theme.GOAL_ROW[1])
+                    for line in row:
+                        c.drawString(x + 26.0 + ROW_LABEL_W, yy + 2.0, line)
+                        yy -= theme.GOAL_ROW[2]
+            elif small:
                 c.setFillColor(theme.INK_FAINT)
                 c.setFont(theme.LIST_SMALL[0], theme.LIST_SMALL[1])
                 c.drawString(x + 26.0, yy + 2.0, small)
-            y -= _entry_height(lines, small)
-    _footer(c, plan, brand, 2, total)
+            y -= _entry_height(lines, small, w - 26.0)
 
 
-def _score(c, plan):
+def _score(c, plan, y):
     work = plan.work
     done = sum(1 for i in work if i.done)
-    y = PAGE_H - 140.0
     c.setFillColor(theme.GOAL_BG)
     c.setStrokeColor(theme.TAG_LINE)
     c.setLineWidth(0.6)
-    c.roundRect(MARGIN, y, PAGE_W - 2 * MARGIN, 26.0, 9, stroke=1, fill=1)
+    c.roundRect(MARGIN, y, PAGE_W - 2 * MARGIN, SCORE_H, 9, stroke=1, fill=1)
     label_w = _tracked(c, "SCORE", MARGIN + 12.0, y + 10.0, theme.BOLD, 6.8, theme.ACCENT, 1.2)
     c.setFillColor(theme.INK)
     c.setFont(theme.EXTRABOLD, 12.0)

@@ -61,6 +61,18 @@ class Board(unittest.TestCase):
                     for line in card.detail_lines:
                         self.assertFalse(line.rstrip().endswith((" 1", " 2", " 3", " 30")), line)
 
+    def test_columns_end_together_under_the_busiest_day(self):
+        cols = self.columns(support.EXAMPLES + "/week.json")
+        self.assertEqual(len(set(c.bottom for c in cols)), 1)
+        lowest_card = min(card.y for c in cols for card in c.cards)
+        self.assertGreater(cols[0].bottom, layout.BOARD_BOTTOM + 100, "a light week leaves room below")
+        self.assertLess(lowest_card - (cols[0].bottom + layout.TOTAL_H), 10, "no tall empty tail")
+
+    def test_light_week_columns_keep_a_minimum_height(self):
+        data = support.plan(days=[{"date": "2026-10-04", "free_hours": 1, "items": [{"title": "Read", "hours": 1}]}])
+        col = layout.lay_out(model.parse(data))[0]
+        self.assertGreaterEqual(col.top - col.bottom, layout.MIN_COL_H - 1e-6)
+
     def test_too_many_cards_refused(self):
         data = support.plan()
         data["days"][1]["free_hours"] = 16

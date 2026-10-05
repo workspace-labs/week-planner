@@ -176,6 +176,46 @@ class Refuses(unittest.TestCase):
         self.assertGreaterEqual(len(self.refused(data)), 2)
 
 
+class Goals(unittest.TestCase):
+    """0.2.0: a goal can carry the person's why, their done-when, and the project whose cards serve it."""
+
+    def goal(self, **fields):
+        data = support.plan(goals=[dict({"goal": "Ship the checks"}, **fields)])
+        data["days"][1]["items"][0]["project"] = "Checks"
+        return data
+
+    def refused(self, data):
+        with self.assertRaises(model.PlanError) as caught:
+            model.parse(data)
+        return " ".join(caught.exception.problems)
+
+    def test_goal_with_details(self):
+        p = model.parse(self.goal(why="It proves the work", done_when="All pass", project="checks"))
+        self.assertEqual(p.goals, ["Ship the checks"])
+        g = p.goal_details[0]
+        self.assertEqual((g.why, g.done_when), ("It proves the work", "All pass"))
+        self.assertEqual([i.title for _, i in p.goal_cards(g)], ["Run the checks"], "project matched ignoring case")
+
+    def test_plain_goal_still_works(self):
+        p = model.parse(support.plan(goals=["Ship it"]))
+        self.assertEqual((p.goals, p.goal_details[0].why, p.goal_cards(p.goal_details[0])), (["Ship it"], "", []))
+
+    def test_project_with_no_cards(self):
+        self.assertIn('names the project "Brand", but no card', self.refused(self.goal(project="Brand")))
+
+    def test_goal_words_needed(self):
+        self.assertIn('Goal 1 needs its words in "goal"', self.refused(support.plan(goals=[{"why": "Because"}])))
+
+    def test_unknown_goal_field(self):
+        self.assertIn('unknown field "reason"', self.refused(self.goal(reason="x")))
+
+    def test_why_too_long(self):
+        self.assertIn('"why" is too long', self.refused(self.goal(why="w" * 91)))
+
+    def test_emoji_in_why(self):
+        self.assertIn("cannot be drawn", self.refused(self.goal(why="Because \U0001F600")))
+
+
 class CarryClaims(unittest.TestCase):
     """F01, round 4: each card plans at most one carried-over item, and each item is on at most one card."""
 

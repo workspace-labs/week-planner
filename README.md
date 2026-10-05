@@ -12,7 +12,7 @@ PDF: seven day columns, one card per task, red for the decisions waiting on you.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.1.1** · **66 tests, all passing** · **reviewed by a second agent: APPROVED** · [the proof](#proof-how-we-know-it-works)
+**Version 0.2.0** · **81 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -30,9 +30,12 @@ Where the app cannot run code, the same plan comes back as a table in the chat.
 
 1. **The Week Board**: the #1 goal in a band, then one column per day. Each card has a bar for its stage
    (active, review, plan), red for a decision waiting on you, hatched for buffer time, and each day shows
-   hours planned of hours free.
-2. **Your focus** (when there is something for it): the top goals, what is waiting on you, and what carried
-   over from last week. In a review: the score, and what moves to next week.
+   hours planned of hours free. The columns end together just under the busiest day, so a light week is
+   not a page of empty columns.
+2. **Your focus** (when there is something for it): the top goals (each with why it matters, how you will
+   know it is done, and its tasks and hours this week, when given), what is waiting on you, and what carried
+   over from last week. In a review: the score, and what moves to next week. It sits under the board, so a
+   usual week is **one page**; a packed week that leaves no room keeps it on a second page.
 
 The look is the WorkSpace Labs house look, the same family as the workflow-project PDF: Plus Jakarta Sans,
 a light ground, one blue accent, red only for "waiting on you".
@@ -79,7 +82,7 @@ The plan file format is in `skills/week-planner/references/plan-format.md`.
 
 We do not call it built until it is proven. Everything below can be checked.
 
-### 66 automated tests, all passing
+### 81 automated tests, all passing
 
 Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back):
 
@@ -87,20 +90,21 @@ Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that re
 python3 -B -m unittest discover -s tests
 ```
 
-On version 0.1.1 (Python 3.9.6, ReportLab 5.0.0): **66 passed, 0 skipped, 0 failed.**
+On version 0.2.0 (Python 3.9.6, ReportLab 5.0.0): **81 passed, 0 skipped, 0 failed.**
 
 | What is tested | Tests |
 |---|---:|
-| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links | 36 |
-| The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split | 7 |
-| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file | 23 |
-| **Total** | **66** |
+| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links, goals with their why, done-when and project | 43 |
+| The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split, columns end together under the busiest day | 9 |
+| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file, the focus under the board (never touching it) or on page 2 when the week is packed, the goal's Why / Done when / This week lines | 29 |
+| **Total** | **81** |
 
 ### Reviewed by a second agent
 
 A second AI agent, Codex, reviewed the skill in a fresh session: it had not watched the build and checked
 everything from the repository itself. Over five rounds it found **7 real problems**. Each was fixed with a
-test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**.
+test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**. That review covers 0.1.1; the 0.2.0 layout change
+(short columns, focus under the board) has not been reviewed yet.
 
 | Finding | What was wrong | Closed in round |
 |---|---|---:|
@@ -122,6 +126,9 @@ The final version was also used the way a person uses it. A fresh agent (once Cl
 the skill's instructions and a scripted person: "plan my week" with a carried-over task too long for a card,
 then "review my week". Each time it asked its questions first, read the plan back and waited for a yes,
 linked the shortened task on its own, and drew a review with the right totals and score.
+
+The owner also planned his own real week with it (5 to 10 October 2026); the tall, mostly empty columns he
+saw on that board are what 0.2.0 fixes.
 
 ### Not tested yet
 

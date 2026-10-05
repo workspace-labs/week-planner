@@ -10,6 +10,34 @@ All notable changes to this project. The version is `VERSION` in
 - README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
   findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
 
+## [0.2.0] - 2026-10-05
+
+The owner's first real week showed the board as six tall columns with two or three cards each, and a second
+page holding one line.
+
+### Changed
+
+- **Columns end under the busiest day.** Every column now stops together just below the day with the most
+  cards (never shorter than 150 pt, so a light week still reads as columns). A day that does not fit is
+  still refused, never squeezed.
+- **Your focus moves under the board when it fits.** The top goals, what is waiting on you, what carried
+  over or moves on (and, in a review, the score) are drawn on page 1 under the board, so a usual week is one
+  page. A packed week that leaves no room keeps them on page 2, as before.
+
+- **A goal says why, and when it is done.** A goal can now be an object: `goal`, and in the person's own
+  words `why` and `done_when`, plus the `project` of the cards that serve it. Under the goal the PDF shows
+  **Why**, **Done when** and **This week** ("4 tasks · 6.5 h · Mon to Wed", or "3 of 4 done" in a review),
+  counted from the cards, never typed. A plain sentence still works. SKILL.md now asks "Why does it matter to
+  you?" and "How will you know it's done?" after the goal, and reads them back. A goal naming a project no
+  card has is refused. The examples' first goal shows it.
+
+### Tests
+
+- 81 tests (was 66): goal objects, their limits and refusals, the counted "This week" line in a plan and a
+  review, and rows left out when not given (11); columns end together, a light week keeps a minimum height, the focus under the board
+  never touches the board or the footer in every example, and a packed week keeps page 2 (4). With the old
+  full-height columns put back, 3 of them fail.
+
 ## [0.1.1] - 2026-10-05
 
 Fixes from Codex's review of 0.1.0 (candidate 16b33da), over five rounds.
