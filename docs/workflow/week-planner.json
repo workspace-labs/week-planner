@@ -3,7 +3,7 @@
     "name": "Week Planner Skill",
     "accent": "Planner",
     "client": "WorkSpace Labs",
-    "version": "1.1",
+    "version": "1.2",
     "summary": "An agent skill that plans your week or weekend. It works in every agent and app: Claude Code, the Claude app and website, Codex and Kimi. It collects your real tasks, asks a few click questions, fits the work into your free days with a buffer, and hands you a PDF, or a table where the app cannot run code. At the end of the week it compares what got done with the plan.",
     "actors": [
       {
@@ -23,7 +23,7 @@
       "The week runs Sunday to Saturday.",
       "It plans projects, plus personal items when you add them.",
       "The result is a Week Board PDF, or a table in chat.",
-      "Plan my weekend: 2 days, 2 to 3 tasks and one fun item.",
+      "Plan my weekend: up to 3 tasks; a fun item only if you want one.",
       "It never presses a board gate or changes a task's stage.",
       "No calendar events, nothing sent, no fixed folder paths."
     ],

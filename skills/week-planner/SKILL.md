@@ -17,15 +17,17 @@ Its own workflow (how it works from A to Z) is drawn in the repository's `docs/w
 | The person says | Flow |
 |---|---|
 | "plan my week" | **Week**: up to 7 days, Sunday to Saturday unless they say their week starts another day |
-| "plan my weekend" | **Weekend**: their weekend days (ask which), at most 3 tasks plus one fun or personal item |
+| "plan my weekend" | **Weekend**: their weekend days (ask which), at most 3 tasks, plus a fun or personal item if they want one |
 | "review my week" | **Review**: mark what got done, score it, move the rest to next week |
 
 ## 1. Collect the tasks
 
 Never invent a task. Gather them from what is really there:
 
-1. **Last week's plan.** If a saved plan file from last week is in reach (see step 5), its unfinished items
-   and open decisions carry over. In a fresh chat, ask whether they have one to paste.
+1. **Last week's plan.** If a saved plan file from last week is in reach (see step 5), everything still open
+   in it carries over: its review's "Moves to next week" list and any decision still waiting. Put each one
+   in `carried_over` in its exact words. Never reviewed? Offer to review it first (step 6). In a fresh chat,
+   ask whether they have one to paste.
 2. **A Backloop board, only if one exists.** If the working folder or the person's Workspace has Backloop
    task files (`<project>/.pipeline/*.md`), read each open card's title, project and status (idea, plan,
    checklist, active, review). Cards waiting for the person's own press or answer are **decisions**.
@@ -54,6 +56,11 @@ what you do not already know.
   longer than planned. Put it mid-week or near the hardest work.
 - **Too much work?** Do not squeeze. Ask which tasks wait for next week, then fit again.
 - Write task titles short, verb first: "Send the report for review", not a paragraph.
+- **Carried-over work:** when you put a carried-over item on a day, keep its exact words as the title if
+  they fit (48 characters). If you shorten or reword it, give that card `"from_last_week"` with its exact
+  words from `carried_over`. That link is how the review knows it was planned: done work stays gone and
+  open work moves on once. One carried-over item goes on one card; the tool refuses two cards for the same
+  one. A carried-over item left off every day shows as "not planned".
 
 ## 4. Read it back
 
@@ -74,8 +81,14 @@ total hours. Wait for their yes. Change what they ask and read it back again. Ne
    `pip install reportlab`, asking first if your rules say installs need approval).
 3. It checks everything first. If it refuses, it lists numbered reasons: **change exactly those in the
    plan file and run it again.** Never draw the PDF another way to get around a refusal, and never edit
-   the tool to silence one.
-4. Look at the pages if you can (`pdftoppm -r 70 -png "<file>.pdf" page`). If you cannot, say so.
+   the tool to silence one. It also names each carried-over item no card takes on: if you did plan one
+   under a shorter title, add the `"from_last_week"` link to that card.
+4. Look at the pages if you can. Render them into a new empty folder, so no file of the person's is ever
+   overwritten; the pictures are only for your check, not part of the result:
+   ```bash
+   preview="$(mktemp -d)" && pdftoppm -r 70 -png "<file>.pdf" "$preview/page" && echo "$preview"
+   ```
+   No `mktemp`? Make any new empty folder and render into it. If you cannot render pages, say so.
 5. Save the PDF **and the plan file next to it**, so the review can reopen it: where the person's own
    instructions say; else a `week-plans/` folder in the current working folder; in a chat sandbox, its
    outputs folder. Never hard-code a path from another machine.
@@ -84,8 +97,8 @@ total hours. Wait for their yes. Change what they ask and read it back again. Ne
 file as a code block so a later session can draw it. The table is in
 [references/chat-table.md](references/chat-table.md).
 
-Hand over in two to four plain sentences: the #1 goal, hours planned of hours free, what is waiting on
-them, and where the file is. Then stop.
+Hand over in two to four plain sentences: the #1 goal, hours planned of hours free (planned includes buffer
+time, as on the PDF), what is waiting on them, and where the file is. Then stop.
 
 ## 6. Review the week
 
@@ -94,7 +107,8 @@ them, and where the file is. Then stop.
    `false`; the tool refuses a review with an item left unmarked.
 3. Draw it the same way; the PDF becomes a **Week Review**: ticks on the board, a score
    ("7 of 10 done"), what is still waiting on them, and what moves to next week.
-4. Say the score plainly and kindly; no lecture. Offer to plan next week, starting from what moved on.
+4. Say the score plainly and kindly; no lecture. Offer to plan next week: its `carried_over` is, word for
+   word, everything still open (the "Moves to next week" list and any decision still waiting).
 
 ## Never
 

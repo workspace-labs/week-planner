@@ -1,6 +1,7 @@
 """The whole tool from the command line: drawn PDFs, their pages and their words."""
 
 import io
+import json
 import os
 import re
 import shutil
@@ -50,14 +51,15 @@ class Draws(unittest.TestCase):
         if HAS_POPPLER:
             text = self.words(out)
             for word in ("This week", "WEEK PLAN", "#1 GOAL", "Choose the new", "Buffer", "WAITING ON YOU",
-                         "CARRIED OVER", "Page 1 of 2", "13.5 h planned of 18.5 h free"):
+                         "CARRIED OVER", "Page 1 of 2", "16 h planned of 18.5 h free"):
                 self.assertIn(word, text)
 
     def test_review_scores_and_moves_on(self):
         out = self.draw("week-reviewed")
         if HAS_POPPLER:
             text = self.words(out)
-            for word in ("WEEK REVIEW", "7 of 10 done", "MOVES TO NEXT WEEK", "Update the weekly sales sheet"):
+            for word in ("WEEK REVIEW", "7 of 10 done", "MOVES TO NEXT WEEK", "Update the weekly sales sheet",
+                         "Book the dentist appointment"):
                 self.assertIn(word, text)
             focus = text.split("How the week")[1]
             self.assertNotIn("Choose the new logo", focus.split("MOVES")[0].split("WAITING ON YOU")[-1],
@@ -78,6 +80,215 @@ class Draws(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.tmp, "Week Plan 2026-10-04.pdf")))
 
 
+class Focus(unittest.TestCase):
+    """F01: in a review, last week's unscheduled carry-over must still be shown."""
+
+    def sections(self, data):
+        from week_tool import model, pages
+        return dict((h, [t for _, t, _ in e]) for h, e in pages.focus_sections(model.parse(data)))
+
+    def reviewed(self, carried):
+        data = support.plan(carried_over=carried)
+        data["days"][0]["items"][0]["done"] = False          # the decision stays open
+        data["days"][1]["items"][0]["done"] = True
+        data["days"][1]["items"].append({"title": "Write notes", "hours": 1, "done": False})
+        return data
+
+    def test_unscheduled_carry_over_survives_review(self):
+        s = self.sections(self.reviewed(["Book the dentist"]))
+        moving = s.get("MOVES TO NEXT WEEK", []) + s.get("CARRIED OVER", [])
+        self.assertIn("Book the dentist", moving)
+        self.assertIn("Write notes", moving)
+
+    def test_carry_over_never_duplicates_or_revives(self):
+        # scheduled and done, scheduled and open, and a still-open decision: none shown a second time
+        s = self.sections(self.reviewed(["Run the checks", "Write notes", "Pick a direction"]))
+        everything = [t for entries in s.values() for t in entries]
+        self.assertNotIn("Run the checks", everything)
+        self.assertEqual(everything.count("Write notes"), 1)
+        self.assertEqual(everything.count("Pick a direction"), 1)
+
+
+    # F01, round 3: last week's long title, planned this week under a shorter name (Codex's repro)
+    LONG = "Review the proposed changes to the customer onboarding guide"
+
+    def shortened(self, kind="task", done=True):
+        item = {"title": "Review onboarding changes", "hours": 1, "done": done, "from_last_week": self.LONG}
+        if kind == "decision":
+            item["kind"] = "decision"
+        return {"carried_over": [self.LONG], "days": [{"date": "2026-10-18", "free_hours": 1, "items": [item]}]}
+
+    def everything(self, data):
+        return [t for entries in self.sections(data).values() for t in entries]
+
+    def test_shortened_carry_over_done_stays_gone(self):
+        shown = self.everything(self.shortened(done=True))
+        self.assertNotIn(self.LONG, shown)
+        self.assertNotIn("Review onboarding changes", shown)
+
+    def test_shortened_carry_over_open_appears_once(self):
+        data = self.shortened(done=False)
+        self.assertEqual(self.sections(data).get("MOVES TO NEXT WEEK"), ["Review onboarding changes"])
+        self.assertNotIn(self.LONG, self.everything(data))
+
+    def test_shortened_open_decision_appears_once(self):
+        s = self.sections(self.shortened(kind="decision", done=False))
+        self.assertEqual(s.get("WAITING ON YOU"), ["Review onboarding changes"])
+        self.assertNotIn("MOVES TO NEXT WEEK", s)
+
+    def test_buffer_never_claims_carry_over(self):
+        # buffer time is room, not work: a carry-over that happens to be called "Buffer" is still open
+        self.assertIn("Buffer", self.sections(self.reviewed(["Buffer"])).get("MOVES TO NEXT WEEK", []))
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_shortened_carry_over_pdf(self):
+        tmp = tempfile.mkdtemp()
+        try:
+            path, out = os.path.join(tmp, "repro.json"), os.path.join(tmp, "repro.pdf")
+            with open(path, "w") as handle:
+                json.dump(self.shortened(done=True), handle)
+            code, _, stderr = run(path, "-o", out)
+            self.assertEqual(code, 0, stderr)
+            text = subprocess.run(["pdftotext", out, "-"], capture_output=True, text=True, check=True).stdout
+            self.assertIn("1 of 1 done", text)
+            self.assertNotIn("customer onboarding guide", text)
+        finally:
+            shutil.rmtree(tmp)
+
+
+    def test_conflicting_title_and_link_keeps_both_honest(self):
+        # done card titled like one carried item but linked to another: the linked one is done, the other moves on
+        data = {"carried_over": ["Write the summary", self.LONG],
+                "days": [{"date": "2026-10-18", "free_hours": 1, "items": [
+                    {"title": "Write the summary", "hours": 1, "done": True, "from_last_week": self.LONG}]}]}
+        s = self.sections(data)
+        self.assertEqual(s.get("MOVES TO NEXT WEEK"), ["Write the summary"])
+        self.assertNotIn(self.LONG, self.everything(data))
+
+    def test_open_personal_item_linked_appears_once(self):
+        data = {"carried_over": ["Gym"], "days": [{"date": "2026-10-18", "free_hours": 1, "items": [
+            {"title": "Gym session", "kind": "personal", "hours": 1, "done": False, "from_last_week": "gym"}]}]}
+        self.assertEqual(self.everything(data), ["Gym session"])
+
+
+class Preview(unittest.TestCase):
+    """B04: the preview command SKILL.md gives never overwrites the person's files."""
+
+    @unittest.skipUnless(shutil.which("pdftoppm"), "needs pdftoppm")
+    def test_documented_preview_keeps_existing_files(self):
+        with open(os.path.join(support.SKILL, "SKILL.md"), encoding="utf-8") as handle:
+            line = next(l for l in handle if "pdftoppm" in l)
+        command = line.split("`")[1] if "`" in line else line.strip()
+        tmp = tempfile.mkdtemp()
+        try:
+            pdf = os.path.join(tmp, "plan.pdf")
+            code, _, stderr = run(os.path.join(support.EXAMPLES, "weekend.json"), "-o", pdf)
+            self.assertEqual(code, 0, stderr)
+            work = os.path.join(tmp, "project")
+            os.mkdir(work)
+            mine = os.path.join(work, "page-1.png")
+            with open(mine, "wb") as handle:
+                handle.write(b"the person's own file")
+            shown = []
+            for _ in range(2):
+                done = subprocess.run(["bash", "-c", command.replace("<file>.pdf", pdf)], cwd=work,
+                                      capture_output=True, text=True)
+                self.assertEqual(done.returncode, 0, done.stderr)
+                shown.append(done.stdout.strip())
+            with open(mine, "rb") as handle:
+                self.assertEqual(handle.read(), b"the person's own file")
+            self.assertEqual(os.listdir(work), ["page-1.png"])
+            self.assertNotEqual(shown[0], shown[1])
+            for folder in shown:
+                self.assertTrue(os.path.exists(os.path.join(folder, "page-1.png")), folder)
+                shutil.rmtree(folder)
+        finally:
+            shutil.rmtree(tmp)
+
+
+class PlannedHours(unittest.TestCase):
+    """B06: "planned" counts buffer time everywhere (both page headers, every column, the check line);
+    the done score never counts it. Expected totals come from the plan file itself, not the tool."""
+
+    def plan(self, reviewed=False, buffer=True):
+        days = [("2026-10-18", 4, [{"title": "Review the sample", "hours": 2}]),
+                ("2026-10-19", 4, [{"title": "Call the supplier", "hours": 1}])]
+        if buffer:   # a third day; a week of 3 or more days must keep a buffer
+            days.append(("2026-10-20", 2, [{"title": "Write the notes", "hours": 1}, {"kind": "buffer", "hours": 1}]))
+        if reviewed:
+            for _, _, items in days:
+                for item in items:
+                    if item.get("kind") != "buffer":
+                        item["done"] = item["title"] != "Call the supplier"
+        return {"goals": ["Finish the sample work"],
+                "days": [{"date": d, "free_hours": f, "items": i} for d, f, i in days]}
+
+    def drawn(self, data):
+        tmp = tempfile.mkdtemp()
+        try:
+            path, out = os.path.join(tmp, "p.json"), os.path.join(tmp, "p.pdf")
+            with open(path, "w") as handle:
+                json.dump(data, handle)
+            code, stdout, stderr = run(path, "-o", out)
+            self.assertEqual(code, 0, stderr)
+            text = subprocess.run(["pdftotext", out, "-"], capture_output=True, text=True, check=True).stdout
+            return stdout, text, pages(out)
+        finally:
+            shutil.rmtree(tmp)
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_planned_agrees_with_the_days(self):
+        from week_tool import model
+        for buffer in (True, False):
+            for reviewed in (False, True):
+                data = self.plan(reviewed, buffer)
+                planned = sum(i["hours"] for d in data["days"] for i in d["items"])
+                free = sum(d["free_hours"] for d in data["days"])
+                expect = "%s planned of %s free" % (model.hours_text(planned), model.hours_text(free))
+                with self.subTest(buffer=buffer, reviewed=reviewed):
+                    stdout, text, count = self.drawn(data)
+                    self.assertIn(expect, stdout)
+                    self.assertEqual(text.count(expect), count, "every page header")
+                    if reviewed:
+                        work = [i for d in data["days"] for i in d["items"] if i.get("kind") != "buffer"]
+                        self.assertIn("%d of %d done" % (sum(i["done"] for i in work), len(work)), text)
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_codex_reproduction(self):
+        # 4 h of tasks and a 1 h buffer in 10 h free: 5 h planned, and the review still scores 2 of 3
+        stdout, text, _ = self.drawn(self.plan(reviewed=True))
+        self.assertIn("5 h planned of 10 h free", stdout)
+        self.assertIn("5 h planned of 10 h free", text)
+        self.assertIn("2 of 3 done", text)
+        self.assertNotIn("4 h planned", text + stdout)
+
+
+class Footer(unittest.TestCase):
+    """F03: a long title and website never run into the page number."""
+
+    @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
+    def test_footer_never_reaches_page_number(self):
+        from week_tool import brand, layout, model, pages, theme
+        theme.register_fonts()
+        owner = brand.load()
+        owner.website = "W" * 60
+        plan = model.parse({"title": "W" * 28 + " " + "I" * 10,
+                            "days": [{"date": "2026-10-11", "free_hours": 1, "items": [{"title": "Read", "hours": 1}]}]})
+        tmp = tempfile.mkdtemp()
+        try:
+            out = os.path.join(tmp, "f.pdf")
+            pages.build(plan, layout.lay_out(plan), owner, out)
+            html = subprocess.run(["pdftotext", "-bbox", out, "-"], capture_output=True, text=True, check=True).stdout
+            words = [(float(a), float(b), float(c), w) for a, b, c, w in
+                     re.findall(r'<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="[\d.]+">([^<]*)</word>', html)]
+            footer = [w for w in words if w[1] > layout.PAGE_H - 45]
+            page_x = min(w[0] for w in footer if w[3] == "Page")
+            left_end = max(w[2] for w in footer if w[0] < page_x)
+            self.assertLess(left_end, page_x - 6.0)
+        finally:
+            shutil.rmtree(tmp)
+
+
 class Command(unittest.TestCase):
     def test_check_writes_nothing(self):
         code, stdout, _ = run(os.path.join(support.EXAMPLES, "week.json"), "--check")
@@ -94,6 +305,40 @@ class Command(unittest.TestCase):
             self.assertEqual(code, 1)
             self.assertIn("  1. Sun 4 Oct is overfilled", stderr)
             self.assertEqual(os.listdir(tmp), ["bad.json"])
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_huge_number_in_file_is_refused(self):
+        # F05: a 401-digit whole number in the file is a numbered refusal, never a Python error
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, "big.json")
+            with open(path, "w") as handle:
+                handle.write('{"days": [{"date": "2026-10-11", "free_hours": 1%s, "items": [{"title": "Read", "hours": 1}]}]}'
+                             % ("0" * 400))
+            code, _, stderr = run(path)
+            self.assertEqual(code, 1)
+            self.assertIn("  1. Sun 11 Oct", stderr)
+            self.assertLess(len(stderr), 400)
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_unlinked_carry_over_is_named(self):
+        # the planner shortened a carried-over title but forgot the link: the tool says so, without refusing
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, "p.json")
+            long = "Review the proposed changes to the customer onboarding guide"
+            item = {"title": "Review onboarding changes", "hours": 1}
+            for linked in (False, True):
+                if linked:
+                    item["from_last_week"] = long
+                with open(path, "w") as handle:
+                    json.dump({"carried_over": [long], "days": [{"date": "2026-10-18", "free_hours": 1, "items": [item]}]},
+                              handle)
+                code, stdout, _ = run(path, "--check")
+                self.assertEqual(code, 0)
+                self.assertEqual("Carried over but on no day" in stdout, not linked)
         finally:
             shutil.rmtree(tmp)
 

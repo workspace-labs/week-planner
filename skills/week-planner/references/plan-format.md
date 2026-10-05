@@ -31,7 +31,7 @@ One JSON object. The drawing tool refuses any unknown field by name, so a typo n
 | `mode` | no | `"week"` (default) or `"weekend"`. |
 | `title` | no | Up to 40 characters; its last word is drawn in blue. Default "This week" or "This weekend". |
 | `goals` | no | Up to 3 short sentences (70 characters each). The first is the #1 goal, shown in a band on the board. |
-| `carried_over` | no | Up to 8 items carried from last week (70 characters each). |
+| `carried_over` | no | Up to 8 items carried from last week (70 characters each), in their exact words, each once. |
 
 ## A day
 
@@ -52,13 +52,34 @@ One JSON object. The drawing tool refuses any unknown field by name, so a typo n
 | `stage` | no | For a task or decision from a board: `idea`, `plan`, `checklist`, `active`, `review`. It sets the colour of the card's bar. |
 | `project` | no | Up to 24 characters, shown on the card's second line. |
 | `done` | review only | `true` or `false`. Once any item has it, every item except buffers must have it. |
+| `from_last_week` | no | When this card plans a carried-over item under a shorter or different title: that item's exact words from `carried_over`. Not for a buffer. |
 
 ## The rules the tool holds
 
-- A day's items never add up to more than its `free_hours`.
+- A day's items never add up to more than its `free_hours`. "Planned" always means all of a day's items,
+  buffer time included (each column, both page headers, the tool's check line); the review's score counts
+  only real work, never buffers.
 - A week plan of 3 or more days has at least one buffer item.
-- A weekend plan has at most 3 tasks or decisions, and at least one personal item.
+- A weekend plan has at most 3 tasks or decisions. Personal items are optional and do not count.
 - Every word fits its card, a title takes at most 3 lines, and a day's cards fit its column.
 - English text only: characters the house font cannot draw (emoji, other scripts) are refused.
+- `from_last_week` repeats one `carried_over` entry word for word (capital letters and spacing aside).
+- One carried-over item goes on one card: two cards planning the same item are refused, whether by title,
+  by `from_last_week` or one of each.
+
+## Carried-over items in a review
+
+Each card plans at most one carried-over item: the one it names in `from_last_week`, or, without that
+field, the one its title repeats. The link wins, so a card linked to one item never also plans another item
+that happens to share its title. Buffer time plans nothing. That card's own `done` then decides the item:
+done is gone, open moves on once, and an open decision stays under "Waiting on you". A carried-over item no
+card plans moves to next week as "from last week, not planned".
+
+```json
+{"carried_over": ["Review the proposed changes to the customer onboarding guide"],
+ "days": [{"date": "2026-10-18", "free_hours": 1, "items": [
+   {"title": "Review onboarding changes", "hours": 1, "done": true,
+    "from_last_week": "Review the proposed changes to the customer onboarding guide"}]}]}
+```
 
 Each refusal is a numbered sentence saying exactly what to change.

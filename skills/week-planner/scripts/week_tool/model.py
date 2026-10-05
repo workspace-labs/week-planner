@@ -5,6 +5,7 @@ The format is in references/plan-format.md. Nothing here draws; layout.py and pa
 
 import datetime
 import json
+import math
 
 from . import theme
 
@@ -13,7 +14,7 @@ STAGES = ("idea", "plan", "checklist", "active", "review")
 MODES = ("week", "weekend")
 _PLAN_KEYS = {"title", "mode", "goals", "carried_over", "days"}
 _DAY_KEYS = {"date", "free_hours", "off", "items"}
-_ITEM_KEYS = {"title", "kind", "stage", "project", "hours", "done"}
+_ITEM_KEYS = {"title", "kind", "stage", "project", "hours", "done", "from_last_week"}
 WEEKEND_MOST_TASKS = 3
 
 
@@ -24,10 +25,11 @@ class PlanError(Exception):
 
 
 class Item(object):
-    def __init__(self, title, kind, stage, project, hours, done):
+    def __init__(self, title, kind, stage, project, hours, done, from_last_week=""):
         self.title, self.kind, self.stage, self.project = title, kind, stage, project
         self.hours = hours        # a multiple of a quarter hour
         self.done = done          # None until the week is reviewed, then True or False
+        self.from_last_week = from_last_week   # the carried_over words this card plans, when its title differs
 
     @property
     def counts(self):
@@ -63,6 +65,21 @@ class Plan(object):
     @property
     def unfinished(self):
         return [(day, item) for day in self.days for item in day.items if item.counts and item.done is False]
+
+    @property
+    def unplanned_carry_over(self):
+        """Carried-over items no card plans this week."""
+        taken = set(same_words(self.carry_source(item)) for item in self.work)
+        return [text for text in self.carried_over if same_words(text) not in taken]
+
+    def carry_source(self, item):
+        """The one carried-over item a card plans: the one it names in "from_last_week", else the one its
+        title repeats, else "". The link wins, so a linked card never also plans an item that happens to
+        share its title. Buffer time plans nothing."""
+        if not item.counts:
+            return ""
+        entries = dict((same_words(text), text) for text in self.carried_over)
+        return entries.get(same_words(item.from_last_week or item.title), "")
 
 
 def load(path):
@@ -163,9 +180,13 @@ def _item(raw, where, problems):
     if done is not None and (not isinstance(done, bool) or kind == "buffer"):
         problems.append('%s: "done" must be true or false, and buffer time is never marked.' % where)
         done = None
+    carried = _text(raw, "from_last_week", 70, where, problems)
+    if carried and kind == "buffer":
+        problems.append('%s: buffer time is room, not work, so it never takes on "from_last_week".' % where)
+        carried = ""
     if hours is None:
         return None
-    return Item(title, kind, stage, project, hours, done)
+    return Item(title, kind, stage, project, hours, done, carried)
 
 
 def _check_dates(days, problems):
@@ -185,15 +206,32 @@ def _check_plan(plan, problems):
         if len(tasks) > WEEKEND_MOST_TASKS:
             problems.append("A weekend plan holds at most %d tasks; this one has %d. Keep the most important."
                             % (WEEKEND_MOST_TASKS, len(tasks)))
-        if not any(i.kind == "personal" for d in plan.days for i in d.items):
-            problems.append('A weekend plan has one fun or personal item. Add one with "kind": "personal".')
+    seen = set()
+    for text in plan.carried_over:
+        if same_words(text) in seen:
+            problems.append('"carried_over" lists "%s" twice. Keep it once.' % text)
+        seen.add(same_words(text))
+    for item in plan.work:
+        if item.from_last_week and same_words(item.from_last_week) not in seen:
+            problems.append('"%s": "from_last_week" must repeat one "carried_over" entry word for word; '
+                            '"%s" is not one of them.' % (item.title, item.from_last_week))
+    cards = {}
+    for item in plan.work:
+        source = plan.carry_source(item)
+        if source:
+            cards.setdefault(same_words(source), (source, []))[1].append(item.title)
+    for source, titles in cards.values():
+        if len(titles) > 1:
+            problems.append('Carried-over "%s" is on %d cards: %s. One carried-over item goes on one card; give the '
+                            'others a title of their own and no "from_last_week" to it.'
+                            % (source, len(titles), ", ".join('"%s"' % t for t in titles)))
     if plan.reviewed:
         unmarked = [i.title for i in plan.work if i.done is None]
         if unmarked:
             problems.append('The week is being reviewed, so every item needs "done": true or false. Not marked yet: %s.'
                             % "; ".join(unmarked))
     texts = [plan.title] + plan.goals + plan.carried_over
-    texts += [t for d in plan.days for i in d.items for t in (i.title, i.project) if t]
+    texts += [t for d in plan.days for i in d.items for t in (i.title, i.project, i.from_last_week) if t]
     missing = sorted(set(ch for t in texts for ch in theme.missing_characters(t)))
     if missing:
         problems.append("These characters cannot be drawn by the house font (English text only, no emoji): %s."
@@ -236,14 +274,20 @@ def _texts(data, key, most, limit, problems):
 
 
 def _hours(value, where, problems, allow_zero=False):
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)):
         problems.append("%s must be a number of hours (0.5 is half an hour); it is %s." % (where, describe(value)))
         return None
     if value < 0 or (value == 0 and not allow_zero) or value > 16 or abs(value * 4 - round(value * 4)) > 1e-9:
+        shown = value if abs(value) <= 1000 else "far too %s" % ("large" if value > 0 else "small")
         problems.append("%s must be between %s and 16, in quarter hours (0.25, 0.5, 0.75 ...); it is %s."
-                        % (where, "0" if allow_zero else "0.25", value))
+                        % (where, "0" if allow_zero else "0.25", shown))
         return None
     return round(value * 4) / 4.0
+
+
+def same_words(text):
+    """Two texts are the same item when only capital letters or spacing differ."""
+    return " ".join(text.split()).casefold()
 
 
 def describe(value):

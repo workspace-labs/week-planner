@@ -3,7 +3,7 @@
 ## What it does
 
 - Plans a person's **week** (up to 7 days, Sunday to Saturday by default) or **weekend** (at most 3 tasks
-  plus one personal item), and **reviews** the week at its end: a score, and what moves on.
+  plus a personal item only if the person wants one), and **reviews** the week at its end: a score, and what moves on.
 - Works in every agent and app: Claude Code, the Claude app and website, Codex and other agents. It asks
   the person for their tasks everywhere, and reads a Backloop board only where one exists.
 - Hands back a **Week Board** PDF in the WorkSpace Labs house look (owner's pick, concept A, 2026-10-05),

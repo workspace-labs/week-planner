@@ -12,7 +12,7 @@ PDF: seven day columns, one card per task, red for the decisions waiting on you.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.1.0**
+**Version 0.1.1**
 
 ---
 
@@ -21,7 +21,7 @@ for your tasks everywhere, and also reads your Backloop board (read only) where 
 | You say | You get |
 |---|---|
 | "plan my week" | A few click questions (free hours, free days, your #1 goal), a read-back, then the Week Plan PDF |
-| "plan my weekend" | Your weekend days, at most 3 tasks plus one fun or personal item |
+| "plan my weekend" | Your weekend days, at most 3 tasks, plus a fun or personal item if you want one |
 | "review my week" | Tick what got done: a Week Review PDF with the score and what moves to next week |
 
 Where the app cannot run code, the same plan comes back as a table in the chat.
@@ -81,8 +81,8 @@ The plan file format is in `skills/week-planner/references/plan-format.md`.
 python3 -B -m unittest discover -s tests
 ```
 
-36 checks: the plan rules and their plain refusals (overfilled day, no buffer, too much for a weekend, a
-half-marked review, emoji, wrong dates and hours); the board geometry judged by independent rectangle maths
+66 checks: the plan rules and their plain refusals (overfilled day, no buffer, too much for a weekend, a
+half-marked review, emoji, wrong dates and hours, carried-over items and their links); the board geometry judged by independent rectangle maths
 (every card inside its column, nothing overlapping, every line fits, "1 h" never split); and the drawn PDFs
 read back with `pdftotext` (skipped where poppler is missing).
 

@@ -55,9 +55,12 @@ def main(argv=None):
 
     work = plan.work
     print("Checked: %d days, %d items, %s planned of %s free." % (
-        len(plan.days), len(work), model.hours_text(sum(i.hours for i in work)),
+        len(plan.days), len(work), model.hours_text(sum(d.planned for d in plan.days)),
         model.hours_text(sum(d.free_hours for d in plan.days if not d.off))))
     print("No day is overfilled, and every word fits its card.")
+    for text in plan.unplanned_carry_over:
+        print('Carried over but on no day: "%s". If a card is this item under a shorter title, '
+              'give that card "from_last_week": "%s".' % (text, text))
     if args.check:
         print("Ready to draw.")
         return 0

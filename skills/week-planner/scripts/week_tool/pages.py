@@ -45,7 +45,7 @@ def date_range(plan):
 
 def summary_line(plan):
     work = plan.work
-    planned = sum(i.hours for i in work)
+    planned = sum(day.planned for day in plan.days)     # buffer time included, as in every column total
     free = sum(d.free_hours for d in plan.days if not d.off)
     text = "%s  ·  %s planned of %s free" % (date_range(plan), hours_text(planned), hours_text(free))
     if plan.reviewed:
@@ -203,9 +203,13 @@ def focus_sections(plan):
         later = " · moves to next week" if plan.reviewed else ""
         sections.append(("WAITING ON YOU", [("red", i.title, "%s · %s%s" % (day_name(d.date), hours_text(i.hours), later))
                                             for d, i in waiting]))
-    moving = [(d, i) for d, i in plan.unfinished if i.kind != "decision"]
-    if plan.reviewed and moving:
-        sections.append(("MOVES TO NEXT WEEK", [("ring", i.title, day_name(d.date)) for d, i in moving]))
+    if plan.reviewed:
+        # Last week's carry-over that was never put on a day is still open: it moves on too. One that was
+        # scheduled is already judged by its card (done, moving, or waiting), so it is not listed again.
+        moving = [("ring", i.title, day_name(d.date)) for d, i in plan.unfinished if i.kind != "decision"]
+        moving += [("ring", t, "from last week, not planned") for t in plan.unplanned_carry_over]
+        if moving:
+            sections.append(("MOVES TO NEXT WEEK", moving))
     elif plan.carried_over:
         sections.append(("CARRIED OVER", [("dot", t, "from last week") for t in plan.carried_over]))
     return sections
@@ -348,11 +352,22 @@ def _footer(c, plan, brand, page, total):
     c.line(MARGIN, 40.0, PAGE_W - MARGIN, 40.0)
     c.setFillColor(theme.INK_FAINT)
     c.setFont(theme.REGULAR, 7)
-    left = "%s — %s  ·  week-planner %s" % (plan.title, date_range(plan), VERSION)
-    if brand.website:
-        left += "  ·  %s" % brand.website
-    c.drawString(MARGIN, 28.0, left)
-    c.drawRightString(PAGE_W - MARGIN, 28.0, "Page %d of %d" % (page, total))
+    number = "Page %d of %d" % (page, total)
+    room = PAGE_W - 2 * MARGIN - theme.width(number, theme.REGULAR, 7) - 16.0
+    c.drawString(MARGIN, 28.0, footer_left(plan, brand, room))
+    c.drawRightString(PAGE_W - MARGIN, 28.0, number)
+
+
+def footer_left(plan, brand, room):
+    """The footer's left words, never running into the page number: the tool's version is dropped first,
+    then the website. The title (40 characters at most) and the dates always fit."""
+    base = "%s — %s" % (plan.title, date_range(plan))
+    version = "  ·  week-planner %s" % VERSION
+    site = "  ·  %s" % brand.website if brand.website else ""
+    for text in (base + version + site, base + site, base):
+        if theme.width(text, theme.REGULAR, 7) <= room:
+            return text
+    return base
 
 
 def _tracked(c, text, x, y, font, size, color, tracking):
