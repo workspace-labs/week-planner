@@ -1,0 +1,132 @@
+{
+  "title": "This week",
+  "mode": "week",
+  "goals": [
+    "Deliver the client report",
+    "Choose the new logo for the brand",
+    "Launch the new website and share it"
+  ],
+  "carried_over": [
+    "Book the dentist appointment"
+  ],
+  "days": [
+    {
+      "date": "2026-10-04",
+      "free_hours": 2,
+      "items": [
+        {
+          "title": "Choose the new logo",
+          "kind": "decision",
+          "project": "Brand",
+          "hours": 1,
+          "done": true
+        }
+      ]
+    },
+    {
+      "date": "2026-10-05",
+      "free_hours": 3,
+      "items": [
+        {
+          "title": "Draft the client report",
+          "stage": "active",
+          "project": "Client work",
+          "hours": 2,
+          "done": true
+        },
+        {
+          "title": "Plan the team offsite",
+          "stage": "active",
+          "project": "Team",
+          "hours": 1,
+          "done": true
+        }
+      ]
+    },
+    {
+      "date": "2026-10-06",
+      "free_hours": 3,
+      "items": [
+        {
+          "title": "Send the report for review",
+          "stage": "active",
+          "project": "Client work",
+          "hours": 2,
+          "done": true
+        },
+        {
+          "title": "Gym",
+          "kind": "personal",
+          "hours": 1,
+          "done": false
+        }
+      ]
+    },
+    {
+      "date": "2026-10-07",
+      "free_hours": 3,
+      "items": [
+        {
+          "title": "Review the new website",
+          "stage": "review",
+          "project": "Website",
+          "hours": 1,
+          "done": true
+        },
+        {
+          "title": "Approve the budget: yes or no",
+          "kind": "decision",
+          "hours": 0.5,
+          "done": false
+        },
+        {
+          "kind": "buffer",
+          "hours": 1
+        }
+      ]
+    },
+    {
+      "date": "2026-10-08",
+      "free_hours": 2.5,
+      "items": [
+        {
+          "title": "Fix the report feedback",
+          "stage": "review",
+          "project": "Client work",
+          "hours": 2,
+          "done": true
+        }
+      ]
+    },
+    {
+      "date": "2026-10-09",
+      "free_hours": 3,
+      "items": [
+        {
+          "title": "Update the weekly sales sheet",
+          "stage": "plan",
+          "project": "Sales",
+          "hours": 2,
+          "done": false
+        },
+        {
+          "title": "Family dinner",
+          "kind": "personal",
+          "hours": 1,
+          "done": true
+        }
+      ]
+    },
+    {
+      "date": "2026-10-10",
+      "free_hours": 2,
+      "off": false,
+      "items": [
+        {
+          "kind": "buffer",
+          "hours": 1.5
+        }
+      ]
+    }
+  ]
+}

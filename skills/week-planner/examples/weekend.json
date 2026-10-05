@@ -1,0 +1,14 @@
+{
+  "mode": "weekend",
+  "goals": ["Rest, and fix the report feedback"],
+  "days": [
+    {"date": "2026-10-09", "free_hours": 4, "items": [
+      {"title": "Fix the report feedback", "stage": "review", "project": "Client work", "hours": 2},
+      {"title": "Choose the new logo", "kind": "decision", "project": "Brand", "hours": 1}
+    ]},
+    {"date": "2026-10-10", "free_hours": 4, "items": [
+      {"title": "Beach with the family", "kind": "personal", "hours": 3},
+      {"kind": "buffer", "hours": 1}
+    ]}
+  ]
+}

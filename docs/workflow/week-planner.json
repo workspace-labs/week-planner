@@ -1,0 +1,354 @@
+{
+  "project": {
+    "name": "Week Planner Skill",
+    "accent": "Planner",
+    "client": "WorkSpace Labs",
+    "version": "1.1",
+    "summary": "An agent skill that plans your week or weekend. It works in every agent and app: Claude Code, the Claude app and website, Codex and Kimi. It collects your real tasks, asks a few click questions, fits the work into your free days with a buffer, and hands you a PDF, or a table where the app cannot run code. At the end of the week it compares what got done with the plan.",
+    "actors": [
+      {
+        "name": "You",
+        "role": "The person planning the week. Answers, confirms, marks what got done."
+      },
+      {
+        "name": "Week planner",
+        "role": "The skill, run by any agent. Asks, builds the plan, draws it."
+      },
+      {
+        "name": "Backloop board",
+        "role": "Optional. Read only when it exists; never changed."
+      }
+    ],
+    "assumptions": [
+      "The week runs Sunday to Saturday.",
+      "It plans projects, plus personal items when you add them.",
+      "The result is a Week Board PDF, or a table in chat.",
+      "Plan my weekend: 2 days, 2 to 3 tasks and one fun item.",
+      "It never presses a board gate or changes a task's stage.",
+      "No calendar events, nothing sent, no fixed folder paths."
+    ],
+    "open_questions": []
+  },
+  "parts": [
+    {
+      "title": "Collect the tasks",
+      "summary": "The skill gathers your real work: from you everywhere, and from the board only where one exists.",
+      "lanes": [
+        "You",
+        "Week planner",
+        "Backloop board"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "lane": "You",
+          "title": "Asks to plan the week"
+        },
+        {
+          "id": "last",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Looks for last week's plan",
+          "detail": "unfinished items carry over",
+          "result": "Carried-over tasks"
+        },
+        {
+          "id": "found",
+          "type": "decision",
+          "lane": "Week planner",
+          "title": "Board found?",
+          "branches": [
+            {
+              "label": "Yes",
+              "to": "read"
+            },
+            {
+              "label": "No",
+              "to": "type"
+            }
+          ]
+        },
+        {
+          "id": "type",
+          "type": "step",
+          "lane": "You",
+          "title": "Types or pastes tasks",
+          "detail": "or uploads a list",
+          "next": "list"
+        },
+        {
+          "id": "read",
+          "type": "step",
+          "lane": "Backloop board",
+          "title": "Shares the open cards",
+          "detail": "read only",
+          "result": "Real tasks and decisions"
+        },
+        {
+          "id": "extra",
+          "type": "step",
+          "lane": "You",
+          "title": "Adds any other tasks",
+          "detail": "or skips"
+        },
+        {
+          "id": "list",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Makes one task list",
+          "result": "This week's tasks"
+        },
+        {
+          "id": "done",
+          "type": "end",
+          "lane": "Week planner",
+          "title": "Tasks collected",
+          "to_part": 2
+        }
+      ]
+    },
+    {
+      "title": "Build the plan",
+      "summary": "A few click questions, then the tasks are ranked and fitted into your free days.",
+      "lanes": [
+        "You",
+        "Week planner"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "lane": "Week planner",
+          "title": "Task list ready"
+        },
+        {
+          "id": "ask",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Asks click questions",
+          "detail": "hours, free days, top goal"
+        },
+        {
+          "id": "answer",
+          "type": "step",
+          "lane": "You",
+          "title": "Answers by clicking",
+          "result": "Hours, days and goal"
+        },
+        {
+          "id": "rank",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Ranks the tasks",
+          "detail": "your decisions first",
+          "result": "A ranked list"
+        },
+        {
+          "id": "fit",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Fits tasks into days",
+          "detail": "never overfills a day"
+        },
+        {
+          "id": "fits",
+          "type": "decision",
+          "lane": "Week planner",
+          "title": "Fits the hours?",
+          "branches": [
+            {
+              "label": "Yes",
+              "to": "buffer"
+            },
+            {
+              "label": "No",
+              "to": "trim"
+            }
+          ]
+        },
+        {
+          "id": "trim",
+          "type": "step",
+          "lane": "You",
+          "title": "Picks what waits",
+          "detail": "moves to next week",
+          "next": "fit"
+        },
+        {
+          "id": "buffer",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Keeps a buffer slot",
+          "detail": "things take longer",
+          "result": "A draft week plan"
+        },
+        {
+          "id": "done",
+          "type": "end",
+          "lane": "Week planner",
+          "title": "Draft ready",
+          "to_part": 3
+        }
+      ]
+    },
+    {
+      "title": "Confirm and deliver",
+      "summary": "You approve a plain read-back, then get a PDF, or a table where the app cannot run code.",
+      "lanes": [
+        "You",
+        "Week planner"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "lane": "Week planner",
+          "title": "Draft ready"
+        },
+        {
+          "id": "readback",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Reads the plan back",
+          "detail": "day by day, plain words"
+        },
+        {
+          "id": "right",
+          "type": "decision",
+          "lane": "You",
+          "title": "Looks right?",
+          "branches": [
+            {
+              "label": "Yes",
+              "to": "code"
+            },
+            {
+              "label": "No",
+              "to": "change"
+            }
+          ]
+        },
+        {
+          "id": "change",
+          "type": "step",
+          "lane": "You",
+          "title": "Says what to change",
+          "next": "readback"
+        },
+        {
+          "id": "code",
+          "type": "decision",
+          "lane": "Week planner",
+          "title": "Can run code?",
+          "branches": [
+            {
+              "label": "Yes",
+              "to": "pdf"
+            },
+            {
+              "label": "No",
+              "to": "table"
+            }
+          ]
+        },
+        {
+          "id": "table",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Shows a table in chat",
+          "result": "The week plan",
+          "next": "has"
+        },
+        {
+          "id": "pdf",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Draws the PDF",
+          "detail": "week, goals, waiting on you",
+          "result": "The week plan PDF"
+        },
+        {
+          "id": "save",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Saves it with the date",
+          "detail": "where this app saves files"
+        },
+        {
+          "id": "has",
+          "type": "end",
+          "lane": "You",
+          "title": "Has the week plan"
+        }
+      ]
+    },
+    {
+      "title": "Review the week",
+      "summary": "At the end of the week, done is compared with planned and the rest carries over.",
+      "lanes": [
+        "You",
+        "Week planner"
+      ],
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "lane": "You",
+          "title": "Asks to review the week"
+        },
+        {
+          "id": "open",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Opens the saved plan",
+          "detail": "or asks you to paste it"
+        },
+        {
+          "id": "mark",
+          "type": "step",
+          "lane": "You",
+          "title": "Marks what got done",
+          "detail": "click each task"
+        },
+        {
+          "id": "score",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Shows the score",
+          "detail": "for example 6 of 8 done",
+          "result": "The week score"
+        },
+        {
+          "id": "all",
+          "type": "decision",
+          "lane": "Week planner",
+          "title": "All done?",
+          "branches": [
+            {
+              "label": "Yes",
+              "to": "closed"
+            },
+            {
+              "label": "No",
+              "to": "carry"
+            }
+          ]
+        },
+        {
+          "id": "carry",
+          "type": "step",
+          "lane": "Week planner",
+          "title": "Carries the rest over",
+          "result": "Start of next week's list"
+        },
+        {
+          "id": "closed",
+          "type": "end",
+          "lane": "You",
+          "title": "Week closed"
+        }
+      ]
+    }
+  ]
+}

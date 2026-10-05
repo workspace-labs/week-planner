@@ -1,0 +1,129 @@
+---
+name: week-planner
+description: Plans a person's week or weekend and hands back a one-page Week Board PDF (seven day columns, every task in its day, a buffer slot, what is waiting on them), then reviews the week at the end. Use when someone says "plan my week", "plan my weekend", "what should I do this week", "make my weekly plan", "help me fit my tasks into the week", or "review my week" / "how did my week go". Works in any agent or app; reads a Backloop task board only when one is there. Not for one-off reminders, timed cloud jobs or recurring agent runs, calendar invites, or a project's build plan.
+---
+
+# week-planner
+
+Turns "plan my week" into a calm, realistic week: the real tasks, fitted into the free hours of each day,
+never overfilled, with room to breathe. At the end of the week it scores what got done and carries the
+rest over. The result is a **Week Board** PDF in the WorkSpace Labs house look (the same family as the
+workflow-project PDF), or a table in the chat where code cannot run.
+
+Its own workflow (how it works from A to Z) is drawn in the repository's `docs/workflow/`.
+
+## Three flows
+
+| The person says | Flow |
+|---|---|
+| "plan my week" | **Week**: up to 7 days, Sunday to Saturday unless they say their week starts another day |
+| "plan my weekend" | **Weekend**: their weekend days (ask which), at most 3 tasks plus one fun or personal item |
+| "review my week" | **Review**: mark what got done, score it, move the rest to next week |
+
+## 1. Collect the tasks
+
+Never invent a task. Gather them from what is really there:
+
+1. **Last week's plan.** If a saved plan file from last week is in reach (see step 5), its unfinished items
+   and open decisions carry over. In a fresh chat, ask whether they have one to paste.
+2. **A Backloop board, only if one exists.** If the working folder or the person's Workspace has Backloop
+   task files (`<project>/.pipeline/*.md`), read each open card's title, project and status (idea, plan,
+   checklist, active, review). Cards waiting for the person's own press or answer are **decisions**.
+   **Read only**: never edit a task file, never run a command that moves a card, never press a gate.
+   No board? Skip this quietly.
+3. **Ask them.** "What else is on this week?" They can type, paste a list or upload a file. Personal items
+   (gym, family, study) are welcome but optional; never add one they did not mention.
+
+## 2. Ask a few questions
+
+Ask with clickable choices where the app has them, always with a way to type their own answer. Ask only
+what you do not already know.
+
+1. **Free time:** how many hours, and which days are free or off? (Per day if they know it.)
+2. **The #1 goal:** offer their real projects to click. Up to two more goals are optional.
+3. **Personal items:** add some, or skip?
+4. Weekend flow only: **which days are your weekend?**
+
+## 3. Build the plan
+
+- **Rank:** decisions waiting on them first (they block other work), then active and review work, then
+  plan and idea work. Personal items go where they asked.
+- **Fit:** put each task in a day. A day's tasks must not add up to more than its free hours; the tool
+  refuses an overfilled day. Times are in quarter hours (0.25, 0.5, 1, 1.5 ...).
+- **Leave room:** a week plan keeps **at least one buffer slot** (`"kind": "buffer"`), because things take
+  longer than planned. Put it mid-week or near the hardest work.
+- **Too much work?** Do not squeeze. Ask which tasks wait for next week, then fit again.
+- Write task titles short, verb first: "Send the report for review", not a paragraph.
+
+## 4. Read it back
+
+Say the plan day by day in plain words ("Sunday: choose the new logo, 1 hour. Monday: ...") and the
+total hours. Wait for their yes. Change what they ask and read it back again. Never draw before the yes.
+
+## 5. Deliver
+
+**Where code can run** (coding agents, and chat apps with code execution):
+
+1. Write the plan file as JSON. Format: [references/plan-format.md](references/plan-format.md); examples in
+   `examples/`.
+2. Draw it:
+   ```bash
+   python3 <this skill's folder>/scripts/draw_week.py plan.json -o "Week Plan 2026-10-04.pdf"
+   ```
+   It needs Python 3.9+ and `reportlab` (already in Claude's and ChatGPT's sandboxes; elsewhere
+   `pip install reportlab`, asking first if your rules say installs need approval).
+3. It checks everything first. If it refuses, it lists numbered reasons: **change exactly those in the
+   plan file and run it again.** Never draw the PDF another way to get around a refusal, and never edit
+   the tool to silence one.
+4. Look at the pages if you can (`pdftoppm -r 70 -png "<file>.pdf" page`). If you cannot, say so.
+5. Save the PDF **and the plan file next to it**, so the review can reopen it: where the person's own
+   instructions say; else a `week-plans/` folder in the current working folder; in a chat sandbox, its
+   outputs folder. Never hard-code a path from another machine.
+
+**Where code cannot run:** give the same plan as a table in the chat, one row per day, and offer the plan
+file as a code block so a later session can draw it. The table is in
+[references/chat-table.md](references/chat-table.md).
+
+Hand over in two to four plain sentences: the #1 goal, hours planned of hours free, what is waiting on
+them, and where the file is. Then stop.
+
+## 6. Review the week
+
+1. Open last week's plan file (or ask them to paste it, or the table).
+2. Ask which items got done, as one click list. Every item except buffers gets `"done": true` or
+   `false`; the tool refuses a review with an item left unmarked.
+3. Draw it the same way; the PDF becomes a **Week Review**: ticks on the board, a score
+   ("7 of 10 done"), what is still waiting on them, and what moves to next week.
+4. Say the score plainly and kindly; no lecture. Offer to plan next week, starting from what moved on.
+
+## Never
+
+- Never press a board gate (Commit, Accept, Reject) or change a task's stage. The board is read only.
+- Never create calendar events, send messages or emails, or set reminders unless the person asks for that
+  in their own words, and then hand over to the tool that does it.
+- Never add tasks, personal items or goals they did not give you.
+- Never restyle the PDF, swap its fonts or colours, or add charts or dashboards.
+
+## Limits
+
+Say these when they matter:
+
+- English text only; emoji are refused (the house font cannot draw them).
+- A4 landscape, 1 to 7 days (weekend: 1 to 3). About 6 to 8 cards fit in one day's column; more is refused.
+- Task titles up to 48 characters and 3 lines in their card.
+
+## Files
+
+| File | What it is |
+|---|---|
+| `scripts/draw_week.py` | the drawing tool (plan file in, Week Board PDF out) |
+| `references/plan-format.md` | the plan file format and its rules |
+| `references/chat-table.md` | the table to give where code cannot run |
+| `examples/` | a week, a weekend and a reviewed week |
+| `assets/` | the Plus Jakarta Sans font (SIL Open Font License, `assets/fonts/OFL.txt`), `brand.json` and the logo |
+
+## Your own brand
+
+Whose name, logo and website the PDF carries comes from `assets/brand.json` (WorkSpace Labs by default):
+`{"name": "...", "accent": "<one word of the name>", "website": "...", "logo": "<png beside it>"}`.
+Change it only when the person asks for their own brand.
