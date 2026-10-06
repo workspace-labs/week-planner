@@ -22,10 +22,9 @@ done
 
 - Keep `skills/week-planner/` clean: no `__pycache__`, no drawn PDFs, no test files. It is installed and
   uploaded as it is.
-- The look lives in `week_tool/theme.py` and copies workflow-project's values; it is the owner's decision.
-- Geometry (`layout.py`) never imports drawing code.
-- Every change to the skill (`skills/week-planner/`) bumps `VERSION` in `week_tool/__init__.py` and adds a
-  dated `CHANGELOG.md` entry. A README or docs-only change goes under `[Unreleased]` in `CHANGELOG.md`
-  (as in workflow-project).
+- The look lives in `skills/week-planner/scripts/week_tool/theme.py` and copies workflow-project's values; it is the owner's decision.
+- Geometry (`skills/week-planner/scripts/week_tool/layout.py`) never imports drawing code.
+- Every change to the skill (`skills/week-planner/`) bumps `VERSION` in `skills/week-planner/scripts/week_tool/__init__.py` and adds a
+  dated `CHANGELOG.md` entry. A README or docs-only change goes under `[Unreleased]` in `CHANGELOG.md`.
 - After a change, rebuild `dist/week-planner.zip` (command in `README.md`).
 - Never commit or push without the owner's word.
