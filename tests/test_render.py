@@ -46,21 +46,32 @@ class Draws(unittest.TestCase):
         return subprocess.run(["pdftotext", "-layout", path, "-"], capture_output=True, text=True, check=True).stdout
 
     def test_week_has_board_and_focus(self):
+        # 0.3.0: the board with its focus lists, then Top goals, then the advice
         out = self.draw("week")
-        self.assertEqual(pages(out), 1, "a light week's focus fits under the board")
+        self.assertEqual(pages(out), 3)
         if HAS_POPPLER:
             text = self.words(out)
+            board, goals, advice = text.split("\f")[:3]
             for word in ("This week", "WEEK PLAN", "#1 GOAL", "Choose the new", "Buffer", "WAITING ON YOU",
-                         "CARRIED OVER", "Page 1 of 1", "16 h planned of 18.5 h free"):
-                self.assertIn(word, text)
+                         "CARRIED OVER", "Page 1 of 3", "16 h planned of 18.5 h free"):
+                self.assertIn(word, board)
+            self.assertNotIn("TOP GOALS", board, "the goals have their own page now")
+            for word in ("Top goals", "WHY", "DONE WHEN", "WHAT COULD STOP ME", "The client is slow to reply",
+                         "FIRST STEP", "THIS WEEK", "Mon to Thu", "Draft the client report", "THIS WEEK'S #1",
+                         "The old logo no longer fits the brand", "Page 2 of 3"):
+                self.assertIn(word, goals)
+            for word in ("Advice for your week", "FROM THE AI", "BECAUSE YOU SAID", '"Family dinner"',
+                         "CHECK THE DINNER TIME WITH THE FAMILY", "Page 3 of 3"):
+                self.assertIn(word, advice)
 
     def test_review_scores_and_moves_on(self):
         out = self.draw("week-reviewed")
         if HAS_POPPLER:
             text = self.words(out)
             for word in ("WEEK REVIEW", "7 of 10 done", "MOVES TO NEXT WEEK", "Update the weekly sales sheet",
-                         "Book the dentist appointment"):
+                         "Book the dentist appointment", "REACHED", "3 of 3 done"):
                 self.assertIn(word, text)
+            self.assertNotIn("THIS WEEK'S #1", text, "a review shows the verdict instead")
             focus = text.split("SCORE")[1]
             self.assertNotIn("Choose the new logo", focus.split("MOVES")[0].split("WAITING ON YOU")[-1],
                              "a decision made this week is no longer waiting")
@@ -81,7 +92,8 @@ class Draws(unittest.TestCase):
 
 
 class OnePage(unittest.TestCase):
-    """0.2.0: columns end under the busiest day and the focus lists go below the board when they fit."""
+    """0.2.0: columns end under the busiest day and the focus lists go below the board when they fit.
+    0.3.0: a week's goals and advice follow on pages of their own; a weekend keeps its goal under the board."""
 
     def draw(self, data):
         from week_tool import brand, layout, model, pages as tool_pages, theme
@@ -101,10 +113,11 @@ class OnePage(unittest.TestCase):
     @unittest.skipUnless(HAS_POPPLER, "needs pdftotext")
     def test_focus_under_the_board_never_touches_it_or_the_footer(self):
         from week_tool import layout
+        expected = {"week.json": 3, "week-reviewed.json": 3, "weekend.json": 1}
         for path in support.examples():
             with open(path) as handle:
                 columns, count, html = self.draw(json.load(handle))
-            self.assertEqual(count, 1, path)
+            self.assertEqual(count, expected[os.path.basename(path)], path)
             first = html.split("</page>")[0]
             heads = [float(y) for y, w in re.findall(r'yMin="([\d.]+)" xMax="[\d.]+" yMax="[\d.]+">([A-Z]+)</word>', first)
                      if w in ("TOP", "WAITING", "MOVES", "CARRIED", "SCORE")]
@@ -122,9 +135,9 @@ class OnePage(unittest.TestCase):
         columns, count, html = self.draw(data)
         from week_tool import layout
         self.assertLess(columns[0].bottom, layout.BOARD_BOTTOM + 60)
-        self.assertEqual(count, 2)
+        self.assertEqual(count, 3, "board, focus, top goals")
         if HAS_POPPLER:
-            self.assertIn("focus", html)
+            self.assertIn("focus", html.split("</page>")[1])
 
 
 class GoalRows(unittest.TestCase):
@@ -163,9 +176,10 @@ class GoalRows(unittest.TestCase):
                 json.dump(self.data(), handle)
             self.assertEqual(run(path, "-o", out)[0], 0)
             text = subprocess.run(["pdftotext", out, "-"], capture_output=True, text=True, check=True).stdout
-            for words in ("Why", "It proves the work", "This week", "2 tasks"):
+            for words in ("WHY", "It proves the work", "THIS WEEK", "tasks", "Sun to Mon"):
                 self.assertIn(words, text)
-            self.assertNotIn("Done when", text, "a row the person did not give is left out")
+            self.assertNotIn("DONE WHEN", text, "a field the person did not give is left out")
+            self.assertNotIn("FIRST STEP", text)
         finally:
             shutil.rmtree(tmp)
 
@@ -375,6 +389,60 @@ class Footer(unittest.TestCase):
             page_x = min(w[0] for w in footer if w[3] == "Page")
             left_end = max(w[2] for w in footer if w[0] < page_x)
             self.assertLess(left_end, page_x - 6.0)
+        finally:
+            shutil.rmtree(tmp)
+
+
+class Booklet(unittest.TestCase):
+    """0.3.0: the Top goals and advice pages fit, or are refused by name; nothing is squeezed."""
+
+    def check(self, data):
+        from week_tool import booklet, model, theme
+        theme.register_fonts()
+        return booklet.check(model.parse(data))
+
+    def full_goal(self, n):
+        return {"goal": "Goal %d with a fairly long name that still fits its line" % n,
+                "why": "A reason long enough to wrap onto a second line in its narrow column, and more",
+                "done_when": "A finish line long enough to wrap onto a second line in its column, and then more",
+                "risk": "A risk long enough to wrap onto a second line in its narrow column too, and then more",
+                "first_step": "A first step long enough to wrap onto a second line in its column, and then more"}
+
+    def test_examples_fit(self):
+        for path in support.examples():
+            with open(path) as handle:
+                self.assertEqual(self.check(json.load(handle)), [], path)
+
+    def test_too_full_is_refused(self):
+        data = support.plan(goals=[self.full_goal(n) for n in (1, 2, 3)])
+        data["days"][1]["free_hours"] = 16
+        data["days"][1]["items"] = [{"title": "Task %d with a title long enough to wrap" % n, "hours": 1,
+                                     "project": "Checks"} for n in range(12)]
+        data["goals"][0]["project"] = "Checks"
+        self.assertIn("The Top goals page is too full", " ".join(self.check(data)))
+
+    def test_long_word_is_refused(self):
+        tip = {"title": "W" * 48, "text": "Short.", "because": "Pick a direction"}
+        data = support.plan(advice=[tip, dict(tip, title="Fine")])      # two tips share a row, half width each
+        self.assertIn('is too wide for the advice page', " ".join(self.check(data)))
+
+    def test_many_cards_list_ends_with_and_more(self):
+        if not HAS_POPPLER:
+            self.skipTest("needs pdftotext")
+        data = support.plan(goals=[{"goal": "Ship the checks", "project": "Checks"}])
+        for day, numbers in ((0, range(5)), (1, range(5, 10))):
+            data["days"][day]["free_hours"] = 6
+            data["days"][day]["items"] = [{"title": "Check %d" % n, "hours": 1, "project": "Checks"} for n in numbers]
+        tmp = tempfile.mkdtemp()
+        try:
+            path, out = os.path.join(tmp, "p.json"), os.path.join(tmp, "p.pdf")
+            with open(path, "w") as handle:
+                json.dump(data, handle)
+            code, _, stderr = run(path, "-o", out)
+            self.assertEqual(code, 0, stderr)
+            goals = subprocess.run(["pdftotext", out, "-"], capture_output=True, text=True, check=True).stdout.split("\f")[-2]
+            self.assertIn("and 2 more", goals)
+            self.assertIn("10", goals, "the count is every card, not only the ones listed")
         finally:
             shutil.rmtree(tmp)
 

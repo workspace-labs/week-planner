@@ -10,6 +10,47 @@ All notable changes to this project. The version is `VERSION` in
 - README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
   findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
 
+## [0.3.0] - 2026-10-09
+
+The owner's next step after his first real week: a week you tick off as you go, goals that look as serious
+as they are, and the AI's own advice on a page of its own. Designed in conversation and approved from a
+clickable demo (`samples/next-version-demo`, outside the repository) on 2026-10-09.
+
+### Added
+
+- **The HTML page** (`draw_week.py plan.json --html`). The same week as one file that needs no internet:
+  click a task when it is done and the score, each day's total and the goals move at once. **Save plan**
+  downloads the plan file under its own name, with `"done"` set on every task and nothing else changed; the
+  review reads it. Ticks also stay in that browser between visits.
+- **A Top goals page** in a week plan. The #1 goal across the page: **Why**, **Done when**, **What could
+  stop me**, **First step**, and **This week** counted from its cards (tasks, hours, days, and the cards
+  themselves, the first 8 then "and N more"). Goals 2 and 3 below it. In a review: a done bar and the
+  person's verdict, **Reached**, **Close** or **Not yet**.
+- **An advice page.** Up to 5 tips the AI writes from what the person already said, with no extra
+  questions. Each shows "Because you said ..." with their own words, and the tool refuses a `because` that
+  is not in the plan, so a tip can never claim a reason they did not give. A tip about real places or
+  prices carries a "check before you book" note. Nothing on it goes on the board.
+- Goal fields `risk`, `first_step` and (review only) `result`; plan field `advice`.
+
+### Changed
+
+- **The goals left page 1** of a week plan for their own page; page 1 keeps the #1 goal band, and what is
+  waiting on you and what carried over stay under the board. A weekend plan is unchanged: one page, its goal
+  under the board.
+- **SKILL.md asks more about the #1 goal**, one question at a time: why (with a follow-up if the answer is
+  short), how they will know it is done, what could stop them, and their first step. Goals 2 and 3 ask only
+  why. Each answer is polished into one clear sentence and shown for a yes, never with a fact added. The
+  plan puts the #1 goal's tasks early when time is the risk.
+- The review asks each goal's verdict, and reads ticks already saved from the HTML page instead of asking
+  again.
+
+### Tests
+
+- 100 tests (was 81): the new goal fields and the verdict (5), advice and its quote rule (5), the Top goals
+  and advice pages fit or are refused by name and the long card list ends in "and N more" (4), the HTML page
+  (5, one of them clicking the page in a real headless Chrome and pressing Save plan). Four tests that
+  expected the goals under the board on one page now expect the booklet.
+
 ## [0.2.0] - 2026-10-05
 
 The owner's first real week showed the board as six tall columns with two or three cards each, and a second

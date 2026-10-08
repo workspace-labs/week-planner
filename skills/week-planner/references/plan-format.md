@@ -32,12 +32,14 @@ One JSON object. The drawing tool refuses any unknown field by name, so a typo n
 | `title` | no | Up to 40 characters; its last word is drawn in blue. Default "This week" or "This weekend". |
 | `goals` | no | Up to 3 goals. Each is a short sentence (70 characters), or a goal object (below). The first is the #1 goal, shown in a band on the board. |
 | `carried_over` | no | Up to 8 items carried from last week (70 characters each), in their exact words, each once. |
+| `advice` | no | Up to 5 tips for the advice page (below). |
 
 ## A goal object
 
 ```json
-{"goal": "Docker skill passes round 4", "why": "Proof the skill is professional",
- "done_when": "Codex says APPROVED", "project": "Docker skill"}
+{"goal": "Finish the Docker skill", "why": "People asked me to build it, so anyone can use Docker",
+ "done_when": "Every test passes on Mac, Windows and Linux", "risk": "Not enough time, or other work first",
+ "first_step": "Run the full test on Mac", "project": "Docker skill"}
 ```
 
 | Field | Needed | What it is |
@@ -45,9 +47,31 @@ One JSON object. The drawing tool refuses any unknown field by name, so a typo n
 | `goal` | yes | The goal, up to 70 characters. |
 | `why` | no | Why it matters, in the person's words, up to 90 characters. |
 | `done_when` | no | How they will know it is done, in their words, up to 90 characters. |
+| `risk` | no | What could stop them this week, in their words, up to 90 characters. |
+| `first_step` | no | Their very first step, up to 90 characters. |
+| `result` | review only | Their verdict at the end of the week: `"reached"`, `"close"` or `"not yet"`. Refused before the week is reviewed. |
 | `project` | no | The `project` of the cards that serve this goal (capital letters aside). The board counts those cards under the goal: "4 tasks · 6.5 h · Mon to Wed", or "3 of 4 done" in a review. A project no card has is refused. |
 
-Under the goal, the PDF shows a labelled line for each one given: **Why**, **Done when**, **This week**.
+In a week plan, each goal gets a card on the **Top goals** page: **Why**, **Done when**, **What could stop
+me** and **First step** for each one given, then **This week** counted from the cards (and, in a review, a
+done bar and the verdict). A field left out is never shown. In a weekend plan the goal stays under the
+board, with its Why, Done when and This week lines.
+
+## A piece of advice
+
+```json
+{"title": "Send the report early", "text": "The report goes out Tuesday, so a slow answer still lands before Thursday.",
+ "because": "The client is slow to reply", "check": "Check the client's office hours"}
+```
+
+| Field | Needed | What it is |
+|---|---|---|
+| `title` | yes | A few words, up to 48 characters. |
+| `text` | yes | A sentence or two, up to 220 characters. |
+| `because` | yes | The person's own words this tip comes from, up to 90 characters, **copied from this plan**: a goal, its why, done-when, risk or first step, a card title or project, or a carried-over item (capital letters and spacing aside). Anything else is refused. |
+| `check` | no | What to confirm before acting on it, up to 60 characters ("Check opening hours and prices before you book"). |
+
+Advice is drawn on its own page and never puts anything on the board.
 
 ## A day
 
@@ -79,6 +103,7 @@ Under the goal, the PDF shows a labelled line for each one given: **Why**, **Don
 - A weekend plan has at most 3 tasks or decisions. Personal items are optional and do not count.
 - Every word fits its card, a title takes at most 3 lines, and a day's cards fit its column.
 - English text only: characters the house font cannot draw (emoji, other scripts) are refused.
+- The Top goals and advice pages hold what they are given, or the tool refuses and says what to shorten.
 - `from_last_week` repeats one `carried_over` entry word for word (capital letters and spacing aside).
 - One carried-over item goes on one card: two cards planning the same item are refused, whether by title,
   by `from_last_week` or one of each.

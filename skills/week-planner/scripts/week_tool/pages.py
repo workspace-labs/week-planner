@@ -1,5 +1,6 @@
-"""Draws the PDF: page 1 is the Week Board, page 2 (when there is something to put on it) is the focus
-page: the top goals, what is waiting on you, and what carried over or moves on.
+"""Draws the PDF: page 1 is the Week Board, with the focus lists under it (what is waiting on you, what
+carried over or moves on), or on a focus page of their own when the board leaves no room. A week plan
+with goals then has a Top goals page, and a plan with advice ends on the advice page.
 
 Geometry for the board comes from layout.py; this file only paints it.
 """
@@ -23,10 +24,13 @@ _logos = {}
 # ------------------------------------------------------------------ the whole PDF
 
 def build(plan, columns, brand, out_path):
-    """Draws the PDF and returns how many pages it has: one when the focus fits under the board."""
+    """Draws the PDF and returns how many pages it has."""
+    from . import booklet                # it paints with this file's furniture, so it is loaded late
     sections = focus_sections(plan)
     inline = bool(sections) and focus_fits_below(plan, columns)
-    total = 2 if sections and not inline else 1
+    extra = [page for page, wanted in ((_focus_page, sections and not inline), (booklet.goals_page, plan.goal_page),
+                                       (booklet.advice_page, plan.advice)) if wanted]
+    total = 1 + len(extra)
     c = canvas.Canvas(out_path, pagesize=(PAGE_W, PAGE_H))
     c.setTitle("%s - %s" % (plan.title, date_range(plan)))
     c.setAuthor(brand.name)
@@ -38,9 +42,9 @@ def build(plan, columns, brand, out_path):
             _score(c, plan, top - SCORE_H)
             top -= SCORE_H + BELOW_GAP
         _sections(c, sections, focus_room(plan), top - 8.0)
-    elif sections:
+    for number, page in enumerate(extra, 2):
         c.showPage()
-        _focus_page(c, plan, sections, brand, total)
+        page(c, plan, brand, number, total)
     c.showPage()
     c.save()
     return total
@@ -205,7 +209,7 @@ def focus_sections(plan):
     """The focus page's sections as (heading, entries); each entry is (marker, text, small). Empty
     sections are left out, and no sections means no second page."""
     sections = []
-    if plan.goals:
+    if plan.goals and not plan.goal_page:
         sections.append(("TOP GOALS", [(str(n), g.text, goal_rows(plan, g)) for n, g in enumerate(plan.goal_details, 1)]))
     # A decision made this week is no longer waiting; one still open shows here once, not twice.
     waiting = [(d, i) for d, i in plan.decisions if not i.done]
@@ -229,21 +233,28 @@ def goal_rows(plan, goal):
     """The labelled lines under a goal, each only when there is something for it. 'This week' is counted
     from the cards of the goal's project, never typed."""
     rows = [(label, text) for label, text in (("Why", goal.why), ("Done when", goal.done_when)) if text]
-    cards = plan.goal_cards(goal)
-    if cards:
-        work = [i for _, i in cards]
-        days = []
-        for d, _ in cards:
-            name = day_name(d.date).split()[0]
-            if name not in days:
-                days.append(name)
-        if plan.reviewed:
-            count = "%d of %d done" % (sum(1 for i in work if i.done), len(work))
-        else:
-            count = "%d task%s" % (len(work), "" if len(work) == 1 else "s")
-        span = days[0] if len(days) == 1 else "%s to %s" % (days[0], days[-1])
-        rows.append(("This week", "%s · %s · %s" % (count, hours_text(sum(i.hours for i in work)), span)))
+    week = goal_week(plan, goal)
+    if week:
+        count = "%d of %d done" % (week["done"], week["tasks"]) if plan.reviewed else \
+            "%d task%s" % (week["tasks"], "" if week["tasks"] == 1 else "s")
+        rows.append(("This week", "%s · %s · %s" % (count, hours_text(week["hours"]), week["span"])))
     return rows
+
+
+def goal_week(plan, goal):
+    """A goal's week counted from the cards of its project, never typed: how many, how long, which days,
+    how many done. None when no card serves it."""
+    cards = plan.goal_cards(goal)
+    if not cards:
+        return None
+    days = []
+    for d, _ in cards:
+        name = day_name(d.date).split()[0]
+        if name not in days:
+            days.append(name)
+    work = [i for _, i in cards]
+    return {"cards": cards, "tasks": len(work), "done": sum(1 for i in work if i.done),
+            "hours": sum(i.hours for i in work), "span": days[0] if len(days) == 1 else "%s to %s" % (days[0], days[-1])}
 
 
 def _rows_wrapped(rows, room):
@@ -308,7 +319,8 @@ def _entry_height(lines, small, room):
     return len(lines) * theme.LIST_TEXT[2] + extra + 10.0
 
 
-def _focus_page(c, plan, sections, brand, total):
+def _focus_page(c, plan, brand, number, total):
+    sections = focus_sections(plan)
     _rail(c, plan, brand)
     _title(c, "Your focus" if not plan.reviewed else "How the week went", PAGE_H - 82.0)
     c.setFillColor(theme.INK_SOFT)
@@ -317,7 +329,7 @@ def _focus_page(c, plan, sections, brand, total):
     if plan.reviewed:
         _score(c, plan, PAGE_H - 140.0)
     _sections(c, sections, focus_room(plan), FOCUS_TOP)
-    _footer(c, plan, brand, 2, total)
+    _footer(c, plan, brand, number, total)
 
 
 def _sections(c, sections, w, top):
@@ -394,7 +406,7 @@ def _marker(c, marker, cx, cy):
 
 # ------------------------------------------------------------------ page furniture
 
-def _rail(c, plan, brand):
+def _rail(c, plan, brand, tag=None):
     y, tile = PAGE_H - 30.0, 16.0
     x = MARGIN
     if brand.logo:
@@ -409,7 +421,7 @@ def _rail(c, plan, brand):
                     mask="auto", preserveAspectRatio=True, anchor="c")
         x += tile + 8.0
     _accent_line(c, brand.name, brand.accent, x, y - 3.4, theme.BOLD, 9.6)
-    tag = tag_text(plan)
+    tag = tag or tag_text(plan)
     font, size, tracking = theme.BOLD, 6.2, 1.2
     w = theme.tracked_width(tag, font, size, tracking) + 16.0
     c.setFillColor(theme.TAG_BG)
@@ -468,8 +480,10 @@ def _accent_line(c, text, accent, x, y, font, size):
 
 
 def preflight(plan, brand):
-    """Words that would not fit the fixed places: the goal band, the title, the footer."""
-    problems = check_focus(plan)
+    """Words that would not fit the fixed places: the goal band, the title, the footer, the goals and
+    advice pages."""
+    from . import booklet
+    problems = check_focus(plan) + booklet.check(plan)
     room = PAGE_W - 2 * MARGIN
     if plan.goals and theme.width(plan.goals[0], theme.SEMIBOLD, 9.6) > room - 90.0:
         problems.append("The #1 goal is too long for its band. Shorten it.")

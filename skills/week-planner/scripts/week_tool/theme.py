@@ -123,3 +123,18 @@ LIST_TEXT = (MEDIUM, 9.6, 12.6)
 LIST_SMALL = (REGULAR, 7.6, 9.6)
 GOAL_LABEL = (SEMIBOLD, 7.2)
 GOAL_ROW = (REGULAR, 8.2, 10.6)
+
+# The Top goals and advice pages (booklet.py)
+BOOK_LABEL = (BOLD, 6.6)                # WHY, DONE WHEN ... tracked, in the accent
+BOOK_FIELD = (MEDIUM, 9.4, 12.8)        # the person's own words under each label
+GOAL_NUMBER = (EXTRABOLD, 22.0)
+GOAL_TITLE = (EXTRABOLD, 14.0)
+SMALL_NUMBER = (EXTRABOLD, 17.0)
+SMALL_TITLE = (EXTRABOLD, 11.5, 14.0)
+STAT = (EXTRABOLD, 17.0)
+STAT_LABEL = (SEMIBOLD, 6.8)
+TASK_ROW = (REGULAR, 8.2, 10.4)
+META = (SEMIBOLD, 7.6)
+TIP_TITLE = (BOLD, 10.5, 13.0)
+TIP_TEXT = (MEDIUM, 8.8, 12.2)
+TIP_QUOTE = (REGULAR, 8.2, 11.0)

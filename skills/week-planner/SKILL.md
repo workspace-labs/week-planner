@@ -1,6 +1,6 @@
 ---
 name: week-planner
-description: Plans a person's week or weekend and hands back a one-page Week Board PDF (seven day columns, every task in its day, a buffer slot, what is waiting on them), then reviews the week at the end. Use when someone says "plan my week", "plan my weekend", "what should I do this week", "make my weekly plan", "help me fit my tasks into the week", or "review my week" / "how did my week go". Works in any agent or app; reads a Backloop task board only when one is there. Not for one-off reminders, timed cloud jobs or recurring agent runs, calendar invites, or a project's build plan.
+description: Plans a person's week or weekend and hands back a Week Board PDF (seven day columns, every task in its day, a buffer slot, what is waiting on them, a page for their top goals and one of advice), or an HTML page they tick tasks off on all week, then reviews the week at the end. Use when someone says "plan my week", "plan my weekend", "what should I do this week", "make my weekly plan", "help me fit my tasks into the week", or "review my week" / "how did my week go". Works in any agent or app; reads a Backloop task board only when one is there. Not for one-off reminders, timed cloud jobs or recurring agent runs, calendar invites, or a project's build plan.
 ---
 
 # week-planner
@@ -8,7 +8,9 @@ description: Plans a person's week or weekend and hands back a one-page Week Boa
 Turns "plan my week" into a calm, realistic week: the real tasks, fitted into the free hours of each day,
 never overfilled, with room to breathe. At the end of the week it scores what got done and carries the
 rest over. The result is a **Week Board** PDF in the WorkSpace Labs house look (the same family as the
-workflow-project PDF), or a table in the chat where code cannot run.
+workflow-project PDF): the board, then a **Top goals** page in the person's own words, then a page of
+**advice**. On request, the same week comes as an **HTML page** they keep open and tick tasks off on. Where
+code cannot run, it is a table in the chat.
 
 Its own workflow (how it works from A to Z) is drawn in the repository's `docs/workflow/`.
 
@@ -43,11 +45,20 @@ what you do not already know.
 
 1. **Free time:** how many hours, and which days are free or off? (Per day if they know it.)
 2. **The #1 goal:** offer their real projects to click. Up to two more goals are optional.
-   **Then, for each goal, understand it:** ask *"Why does it matter to you?"* and *"How will you know it's
-   done?"* (offer a few likely answers to click, always with a way to type their own). Write their answers
-   short, in their words, as the goal's `why` and `done_when`; never invent one, and leave out a question
-   they skip. Give the goal the `project` of the cards that serve it, so the board counts its tasks and
-   hours for them ("This week: 4 tasks · 6.5 h · Mon to Wed").
+   **Then understand each goal, one question at a time.** For the **#1 goal** ask four:
+   - *"Why does it matter to you?"* If the answer is a word or two, ask one gentle follow-up.
+   - *"How will you know it's done?"* Help them make it something they can check on Saturday.
+   - *"What could stop you this week?"*
+   - *"What's the very first step?"* You may offer two or three likely first steps from what you know of
+     their work, always with a way to type their own.
+
+   For **goals 2 and 3** ask only *"Why does it matter to you?"*, so it stays quick.
+
+   After each answer, **polish their words into one clear sentence and show it**: "Here's how I'd write it:
+   ... Right?" Keep their meaning and their facts; never add one they did not give. They say yes or change
+   it. A question they skip is left out, and its line never appears. The answers go in the goal's `why`,
+   `done_when`, `risk` and `first_step`. Give the goal the `project` of the cards that serve it, so the
+   pages count its tasks and hours ("This week: 4 tasks · 6.5 h · Mon to Wed").
 3. **Personal items:** add some, or skip?
 4. Weekend flow only: **which days are your weekend?**
 
@@ -55,6 +66,8 @@ what you do not already know.
 
 - **Rank:** decisions waiting on them first (they block other work), then active and review work, then
   plan and idea work. Personal items go where they asked.
+- **Use what could stop them.** If the #1 goal's risk is time or other work crowding in, put its tasks
+  early in the week and keep a buffer near them.
 - **Fit:** put each task in a day. A day's tasks must not add up to more than its free hours; the tool
   refuses an overfilled day. Times are in quarter hours (0.25, 0.5, 1, 1.5 ...).
 - **Leave room:** a week plan keeps **at least one buffer slot** (`"kind": "buffer"`), because things take
@@ -69,8 +82,17 @@ what you do not already know.
 
 ## 4. Read it back
 
-Say the goal with its why and done-when, then the plan day by day in plain words ("Sunday: choose the new logo, 1 hour. Monday: ...") and the
+Say the goal with its why, done-when, risk and first step, then the plan day by day in plain words ("Sunday: choose the new logo, 1 hour. Monday: ...") and the
 total hours. Wait for their yes. Change what they ask and read it back again. Never draw before the yes.
+
+**Then write the advice yourself, without asking anything more.** Up to five short tips for their week
+(three is usual), drawn on its own page after the goals. Each tip is a `title`, a sentence or two of
+`text`, and `because`: **their own words, copied from the plan file** (a goal, its why, done-when, risk or
+first step, or a card title), so they see what the tip came from. The tool refuses a `because` that is not
+in the plan. Base every tip on what they told you. A tip may name real places, hotels or opening times when
+it helps (a trip, an event); give it a `check` such as "Check opening hours and prices before you book",
+because those facts change and you can be wrong. Advice never adds a card to the board, and they never have
+to answer it. No advice that fits? Leave `advice` out; the page is then not drawn.
 
 ## 5. Deliver
 
@@ -82,6 +104,17 @@ total hours. Wait for their yes. Change what they ask and read it back again. Ne
    ```bash
    python3 <this skill's folder>/scripts/draw_week.py plan.json -o "Week Plan 2026-10-04.pdf"
    ```
+   A week with goals is a booklet: page 1 the board (with what is waiting on them and what carried over
+   under it, or on a page of its own when the board is full), then **Top goals**, then **advice** when
+   there is some. A weekend keeps its goal under the board, on one page.
+
+   **When they ask for an HTML page** (to tick tasks off during the week), add `--html`:
+   ```bash
+   python3 <this skill's folder>/scripts/draw_week.py plan.json --html -o "Week Plan 2026-10-04.html"
+   ```
+   One file, no internet needed. They click a task when it is done; the score, the day totals and the
+   goals move with it. **Save plan** downloads the plan file with their ticks in it, under the plan file's
+   own name. Tell them to keep it with the week's PDF: the review reads it.
    It needs Python 3.9+ and `reportlab` (already in Claude's and ChatGPT's sandboxes; elsewhere
    `pip install reportlab`, asking first if your rules say installs need approval).
 3. It checks everything first. If it refuses, it lists numbered reasons: **change exactly those in the
@@ -107,12 +140,17 @@ time, as on the PDF), what is waiting on them, and where the file is. Then stop.
 
 ## 6. Review the week
 
-1. Open last week's plan file (or ask them to paste it, or the table).
-2. Ask which items got done, as one click list. Every item except buffers gets `"done": true` or
-   `false`; the tool refuses a review with an item left unmarked.
-3. Draw it the same way; the PDF becomes a **Week Review**: ticks on the board, a score
-   ("7 of 10 done"), what is still waiting on them, and what moves to next week.
-4. Say the score plainly and kindly; no lecture. Offer to plan next week: its `carried_over` is, word for
+1. Open last week's plan file (or ask them to paste it, or the table). If they ticked tasks on the HTML
+   page and pressed **Save plan**, the saved file (usually in their Downloads) already holds the ticks:
+   use it.
+2. Ask which items got done, as one click list. Ticks already saved from the HTML page are read back for a
+   quick "still right?", not asked again. Every item except buffers gets `"done": true` or `false`; the
+   tool refuses a review with an item left unmarked.
+3. For each goal, ask their verdict: *"Did you reach it? Done when: ..."* with three clicks, **Reached**,
+   **Close**, **Not yet**. It goes in the goal's `result` and shows as a badge on the Top goals page.
+4. Draw it the same way; the PDF becomes a **Week Review**: ticks on the board, a score
+   ("7 of 10 done"), what is still waiting on them, what moves to next week, and each goal's verdict.
+5. Say the score plainly and kindly; no lecture. Offer to plan next week: its `carried_over` is, word for
    word, everything still open (the "Moves to next week" list and any decision still waiting).
 
 ## Never
@@ -120,7 +158,8 @@ time, as on the PDF), what is waiting on them, and where the file is. Then stop.
 - Never press a board gate (Commit, Accept, Reject) or change a task's stage. The board is read only.
 - Never create calendar events, send messages or emails, or set reminders unless the person asks for that
   in their own words, and then hand over to the tool that does it.
-- Never add tasks, personal items or goals they did not give you.
+- Never add tasks, personal items or goals they did not give you. Advice is the one place for your own
+  ideas, and it stays on its own page, never on the board.
 - Never restyle the PDF, swap its fonts or colours, or add charts or dashboards.
 
 ## Limits
@@ -129,13 +168,15 @@ Say these when they matter:
 
 - English text only; emoji are refused (the house font cannot draw them).
 - A4 landscape, 1 to 7 days (weekend: 1 to 3). About 6 to 8 cards fit in one day's column; more is refused.
+- The Top goals page lists the #1 goal's first 8 cards, then "and N more". Three goals with every answer
+  near its limit can overfill the page; the tool refuses it and says to shorten.
 - Task titles up to 48 characters and 3 lines in their card.
 
 ## Files
 
 | File | What it is |
 |---|---|
-| `scripts/draw_week.py` | the drawing tool (plan file in, Week Board PDF out) |
+| `scripts/draw_week.py` | the drawing tool (plan file in, Week Board PDF or, with `--html`, the page to tick off) |
 | `references/plan-format.md` | the plan file format and its rules |
 | `references/chat-table.md` | the table to give where code cannot run |
 | `examples/` | a week, a weekend and a reviewed week |

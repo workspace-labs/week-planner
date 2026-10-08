@@ -2,17 +2,19 @@
 
 ![Plan Sunday, review Saturday: the skill's own Week Plan and Week Review pages, fanned out, with the score 7 of 10 done](media/week-planner-hero.png)
 
-**Plan your week, or your weekend, in one calm page. Then see how it went.**
+**Plan your week, or your weekend, calmly. Tick it off as you go. Then see how it went.**
 
 An agent skill that turns "plan my week" into a realistic plan: your real tasks fitted into the free hours
 of each day, never overfilled, with a buffer slot for when things take longer. You get a **Week Board**
-PDF: seven day columns, one card per task, red for the decisions waiting on you. At the end of the week,
-"review my week" scores what got done and carries the rest over.
+PDF: seven day columns, one card per task, red for the decisions waiting on you; then a **Top goals** page
+in your own words, and a page of **advice** for your week. Ask for it, and the same week comes as an
+**HTML page** you keep open and tick tasks off on. At the end of the week, "review my week" scores what got
+done and carries the rest over.
 
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.2.0** · **81 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
+**Version 0.3.0** · **100 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 and 0.3.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -20,9 +22,10 @@ for your tasks everywhere, and also reads your Backloop board (read only) where 
 
 | You say | You get |
 |---|---|
-| "plan my week" | A few click questions (free hours, free days, your #1 goal), a read-back, then the Week Plan PDF |
+| "plan my week" | A few click questions (free hours, free days, your goals: why, done when, what could stop you, first step), a read-back, then the Week Plan PDF |
+| "plan my week, as an HTML page too" | The same week as one HTML page: click a task when it is done, and **Save plan** keeps your ticks |
 | "plan my weekend" | Your weekend days, at most 3 tasks, plus a fun or personal item if you want one |
-| "review my week" | Tick what got done: a Week Review PDF with the score and what moves to next week |
+| "review my week" | Tick what got done (or use the ticks you saved) and say how each goal went: a Week Review PDF with the score, each goal's verdict, and what moves to next week |
 
 Where the app cannot run code, the same plan comes back as a table in the chat.
 
@@ -30,12 +33,22 @@ Where the app cannot run code, the same plan comes back as a table in the chat.
 
 1. **The Week Board**: the #1 goal in a band, then one column per day. Each card has a bar for its stage
    (active, review, plan), red for a decision waiting on you, hatched for buffer time, and each day shows
-   hours planned of hours free. The columns end together just under the busiest day, so a light week is
-   not a page of empty columns.
-2. **Your focus** (when there is something for it): the top goals (each with why it matters, how you will
-   know it is done, and its tasks and hours this week, when given), what is waiting on you, and what carried
-   over from last week. In a review: the score, and what moves to next week. It sits under the board, so a
-   usual week is **one page**; a packed week that leaves no room keeps it on a second page.
+   hours planned of hours free. The columns end together just under the busiest day. Under the board:
+   what is waiting on you and what carried over (in a review: the score, and what moves to next week), or
+   on a page of their own when the board is full.
+2. **Top goals**: your #1 goal across the page with **Why**, **Done when**, **What could stop me** and
+   **First step** in your own words, and **This week** counted from its cards (tasks, hours, days, and the
+   cards themselves). Goals 2 and 3 sit below it. In a review, each goal gets your verdict: **Reached**,
+   **Close** or **Not yet**.
+3. **Advice for your week** (when there is some): up to five tips the AI writes from what you already said,
+   with no extra questions. Each shows **"Because you said ..."** with your own words from the plan, and
+   real-world facts carry a "check before you book" note. Nothing on this page goes on your board.
+
+A weekend plan stays one page, with its goal under the board.
+
+**The HTML page** shows the same three pages. Click a task when it is done: the score, the day totals and
+the goals move at once. **Save plan** downloads the plan file with your ticks, for the review. It is one
+file that needs no internet.
 
 The look is the WorkSpace Labs house look, the same family as the workflow-project PDF: Plus Jakarta Sans,
 a light ground, one blue accent, red only for "waiting on you".
@@ -73,6 +86,7 @@ Then start a fresh session and say "plan my week".
 
 ```bash
 python3 skills/week-planner/scripts/draw_week.py skills/week-planner/examples/week.json -o "Week Plan.pdf"
+python3 skills/week-planner/scripts/draw_week.py skills/week-planner/examples/week.json --html   # the page to tick off
 python3 skills/week-planner/scripts/draw_week.py my-plan.json --check      # checks only
 ```
 
@@ -82,29 +96,32 @@ The plan file format is in `skills/week-planner/references/plan-format.md`.
 
 We do not call it built until it is proven. Everything below can be checked.
 
-### 81 automated tests, all passing
+### 100 automated tests, all passing
 
-Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back):
+Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back; Google
+Chrome for the one that clicks the HTML page in a real browser):
 
 ```bash
 python3 -B -m unittest discover -s tests
 ```
 
-On version 0.2.0 (Python 3.9.6, ReportLab 5.0.0): **81 passed, 0 skipped, 0 failed.**
+On version 0.3.0 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **100 passed, 0 skipped, 0 failed.**
 
 | What is tested | Tests |
 |---|---:|
-| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links, goals with their why, done-when and project | 43 |
+| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links, goals with their why, done-when, risk, first step, project and verdict, and advice whose "because" must be the person's own words | 53 |
 | The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split, columns end together under the busiest day | 9 |
-| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file, the focus under the board (never touching it) or on page 2 when the week is packed, the goal's Why / Done when / This week lines | 29 |
-| **Total** | **81** |
+| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file, the focus under the board (never touching it) or on its own page when the week is packed, the Top goals and advice pages (their words, a page too full or a word too wide refused, "and N more" past 8 cards) | 33 |
+| The HTML page: its default name, no network, the plan's words shown as text never markup, a refused plan writes nothing, and in a real Chrome: a click moves the score, Save plan hands back the plan file with only the ticks changed, and that file draws again | 5 |
+| **Total** | **100** |
 
 ### Reviewed by a second agent
 
 A second AI agent, Codex, reviewed the skill in a fresh session: it had not watched the build and checked
 everything from the repository itself. Over five rounds it found **7 real problems**. Each was fixed with a
 test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**. That review covers 0.1.1; the 0.2.0 layout change
-(short columns, focus under the board) has not been reviewed yet.
+(short columns, focus under the board) and 0.3.0 (Top goals and advice pages, the HTML page) have not been
+reviewed yet.
 
 | Finding | What was wrong | Closed in round |
 |---|---|---:|
@@ -138,11 +155,19 @@ So you know exactly what the proof covers:
 - Uploading the zip to the Claude app.
 - The chat-only table, where code cannot run.
 - A real Backloop board (a made-up board was used).
+- 0.3.0 in a real planning conversation: the new goal questions and the advice were tried on the owner in
+  chat before the build, not yet through the installed skill.
+- The HTML page in Safari, Firefox and on a phone (Chrome is tested; Safari showed the demo it was built
+  from).
 
 ## Limits
 
 - English text only; emoji are refused in the PDF.
 - A4 landscape, 1 to 7 days (weekend 1 to 3), about 6 to 8 cards a day.
+- The Top goals page lists the #1 goal's first 8 cards; three goals with every answer near its limit are
+  refused as too full.
+- The HTML page's Save plan downloads the file (browsers cannot write over it in place); keep it with the
+  week's PDF.
 - Task titles up to 48 characters, 3 lines in their card.
 
 ## Layout
@@ -152,7 +177,8 @@ skills/week-planner/        the skill (what gets installed)
   SKILL.md                  what the agent does
   references/               the plan file format, and the chat table
   scripts/draw_week.py      the drawing tool
-  scripts/week_tool/        its parts: model (rules), layout (geometry), pages (painting), theme, brand
+  scripts/week_tool/        its parts: model (rules), layout (geometry), pages (the board), booklet (Top goals,
+                            advice), page (the HTML page), theme, brand
   examples/                 a week, a weekend and a reviewed week
   assets/                   the fonts (SIL Open Font License), brand.json and the logo
 tests/                      the checks (not shipped with the skill)

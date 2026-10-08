@@ -6,13 +6,34 @@
       "goal": "Deliver the client report",
       "why": "The client signs off this month",
       "done_when": "The client says yes",
-      "project": "Client work"
+      "project": "Client work",
+      "risk": "The client is slow to reply",
+      "first_step": "Draft the report on Monday morning",
+      "result": "reached"
     },
     "Choose the new logo for the brand",
     "Launch the new website and share it"
   ],
   "carried_over": [
     "Book the dentist appointment"
+  ],
+  "advice": [
+    {
+      "title": "Send the report early",
+      "text": "The report goes out Tuesday, so a slow answer still lands before Thursday's fix slot. If nothing comes back by Wednesday, a short reminder helps.",
+      "because": "The client is slow to reply"
+    },
+    {
+      "title": "Answer the budget on Monday",
+      "text": "The budget answer waits until Wednesday on the board, but the website review depends on it. Deciding it early frees the middle of the week.",
+      "because": "Approve the budget: yes or no"
+    },
+    {
+      "title": "Keep Friday evening free",
+      "text": "Friday holds the sales sheet and dinner. Finish the sheet in the afternoon so the evening stays with family.",
+      "because": "Family dinner",
+      "check": "Check the dinner time with the family"
+    }
   ],
   "days": [
     {

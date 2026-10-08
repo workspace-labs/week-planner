@@ -12,10 +12,13 @@ from . import theme
 KINDS = ("task", "decision", "personal", "buffer")
 STAGES = ("idea", "plan", "checklist", "active", "review")
 MODES = ("week", "weekend")
-_PLAN_KEYS = {"title", "mode", "goals", "carried_over", "days"}
+RESULTS = ("reached", "close", "not yet")
+_PLAN_KEYS = {"title", "mode", "goals", "carried_over", "advice", "days"}
 _DAY_KEYS = {"date", "free_hours", "off", "items"}
 _ITEM_KEYS = {"title", "kind", "stage", "project", "hours", "done", "from_last_week"}
-_GOAL_KEYS = {"goal", "why", "done_when", "project"}
+_GOAL_KEYS = {"goal", "why", "done_when", "risk", "first_step", "project", "result"}
+_ADVICE_KEYS = {"title", "text", "because", "check"}
+ADVICE_MOST = 5
 WEEKEND_MOST_TASKS = 3
 
 
@@ -39,11 +42,21 @@ class Item(object):
 
 
 class Goal(object):
-    """A goal in the person's words: why it matters, how they will know it is done, and the project whose
-    cards serve it this week. Only the goal itself is needed."""
+    """A goal in the person's words: why it matters, how they will know it is done, what could stop them,
+    their first step, and the project whose cards serve it this week. Only the goal itself is needed.
+    result is their own verdict in a review: "reached", "close" or "not yet"."""
 
-    def __init__(self, text, why="", done_when="", project=""):
+    def __init__(self, text, why="", done_when="", project="", risk="", first_step="", result=""):
         self.text, self.why, self.done_when, self.project = text, why, done_when, project
+        self.risk, self.first_step, self.result = risk, first_step, result
+
+
+class Advice(object):
+    """One piece of the AI's advice for the week (the advice page). because repeats the person's own words
+    from this plan, so every tip shows what it came from; check says what to confirm before acting on it."""
+
+    def __init__(self, title, text, because, check=""):
+        self.title, self.text, self.because, self.check = title, text, because, check
 
 
 class Day(object):
@@ -56,9 +69,22 @@ class Day(object):
 
 
 class Plan(object):
-    def __init__(self, title, mode, goals, carried_over, days, goal_details=None):
+    def __init__(self, title, mode, goals, carried_over, days, goal_details=None, advice=None):
         self.title, self.mode, self.goals, self.carried_over, self.days = title, mode, goals, carried_over, days
         self.goal_details = goal_details or [Goal(g) for g in goals]     # goals stays the plain words
+        self.advice = advice or []
+
+    @property
+    def goal_page(self):
+        """A week plan with goals gives them a page of their own; a weekend keeps them under its board."""
+        return self.mode == "week" and bool(self.goals)
+
+    def own_words(self):
+        """Everything the person said that is in this plan, for advice to quote."""
+        words = [self.title] + self.carried_over
+        words += [t for g in self.goal_details for t in (g.text, g.why, g.done_when, g.risk, g.first_step, g.project) if t]
+        words += [t for d in self.days for i in d.items for t in (i.title, i.project, i.from_last_week) if t]
+        return words
 
     def goal_cards(self, goal):
         """The days and cards of this week that serve a goal: the work whose project is the goal's project."""
@@ -122,6 +148,7 @@ def parse(data):
     details = _goals(data, problems)
     goals = [g.text for g in details]
     carried = _texts(data, "carried_over", 8, 70, problems)
+    advice = _advice(data, problems)
 
     raw_days = data.get("days")
     if not isinstance(raw_days, list) or not raw_days:
@@ -134,7 +161,7 @@ def parse(data):
     days = [_day(raw, n, problems) for n, raw in enumerate(raw_days, 1)]
     days = [d for d in days if d]
     _check_dates(days, problems)
-    plan = Plan(title, mode, goals, carried, days, details)
+    plan = Plan(title, mode, goals, carried, days, details, advice)
     _check_plan(plan, problems)
     if problems:
         raise PlanError(problems)
@@ -247,14 +274,22 @@ def _check_plan(plan, problems):
         if goal.project and not plan.goal_cards(goal):
             problems.append('Goal %d names the project "%s", but no card this week has that project. Give its cards '
                             'that "project", or correct the name.' % (n, goal.project))
+    for n, goal in enumerate(plan.goal_details, 1):
+        if goal.result and not plan.reviewed:
+            problems.append('Goal %d has a "result", but the week is not reviewed yet. Give it only in the review, '
+                            'with every item marked "done".' % n)
+    said = " | ".join(same_words(t) for t in plan.own_words())
+    for n, tip in enumerate(plan.advice, 1):
+        if same_words(tip.because) not in said:
+            problems.append('Advice %d: "because" must repeat the person\'s own words from this plan (a goal, its why, '
+                            'done-when, risk or first step, or a card title); "%s" is not in it. Quote them, or leave '
+                            'this advice out.' % (n, tip.because))
     if plan.reviewed:
         unmarked = [i.title for i in plan.work if i.done is None]
         if unmarked:
             problems.append('The week is being reviewed, so every item needs "done": true or false. Not marked yet: %s.'
                             % "; ".join(unmarked))
-    texts = [plan.title] + plan.carried_over
-    texts += [t for g in plan.goal_details for t in (g.text, g.why, g.done_when, g.project) if t]
-    texts += [t for d in plan.days for i in d.items for t in (i.title, i.project, i.from_last_week) if t]
+    texts = plan.own_words() + [t for a in plan.advice for t in (a.title, a.text, a.because, a.check) if t]
     missing = sorted(set(ch for t in texts for ch in theme.missing_characters(t)))
     if missing:
         problems.append("These characters cannot be drawn by the house font (English text only, no emoji): %s."
@@ -314,12 +349,45 @@ def _goals(data, problems):
             if not text:
                 problems.append('%s needs its words in "goal".' % where)
                 continue
+            result = entry.get("result")
+            if result is not None and result not in RESULTS:
+                problems.append('%s: "result" must be one of %s; it is %s.' % (where, ", ".join('"%s"' % r for r in RESULTS),
+                                                                             describe(result)))
+                result = None
             out.append(Goal(text, _text(entry, "why", 90, where, problems),
-                            _text(entry, "done_when", 90, where, problems), _text(entry, "project", 24, where, problems)))
+                            _text(entry, "done_when", 90, where, problems), _text(entry, "project", 24, where, problems),
+                            _text(entry, "risk", 90, where, problems), _text(entry, "first_step", 90, where, problems),
+                            result or ""))
         else:
             text = _text({"goals": entry}, "goals", 70, where, problems)
             if text:
                 out.append(Goal(text))
+    return out
+
+
+def _advice(data, problems):
+    """Up to 5 tips, each a short title, a few sentences, the person's own words it came from, and an
+    optional thing to check first."""
+    value = data.get("advice", [])
+    if not isinstance(value, list):
+        problems.append('"advice" must be a list of objects with "title", "text" and "because".')
+        return []
+    if len(value) > ADVICE_MOST:
+        problems.append('"advice" holds at most %d; it has %d. Keep the most useful.' % (ADVICE_MOST, len(value)))
+    out = []
+    for n, entry in enumerate(value[:ADVICE_MOST], 1):
+        where = "Advice %d" % n
+        if not isinstance(entry, dict):
+            problems.append('%s must be an object with "title", "text" and "because".' % where)
+            continue
+        _unknown(entry, _ADVICE_KEYS, where, problems)
+        tip = Advice(_text(entry, "title", 48, where, problems), _text(entry, "text", 220, where, problems),
+                     _text(entry, "because", 90, where, problems).strip('"'), _text(entry, "check", 60, where, problems))
+        missing = [k for k in ("title", "text", "because") if not getattr(tip, k)]
+        if missing:
+            problems.append('%s needs %s.' % (where, " and ".join('"%s"' % k for k in missing)))
+            continue
+        out.append(tip)
     return out
 
 

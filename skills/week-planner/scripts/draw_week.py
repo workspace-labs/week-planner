@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Draws a Week Board PDF from a plan file.
+"""Draws a Week Board PDF from a plan file, or the same week as an HTML page to tick off.
 
     python3 draw_week.py plan.json -o "Week Plan 2026-10-04.pdf"
-    python3 draw_week.py plan.json --check        (checks only, writes nothing)
+    python3 draw_week.py plan.json --html          (the HTML page, "Week Plan 2026-10-04.html")
+    python3 draw_week.py plan.json --check         (checks only, writes nothing)
 
 Needs Python 3.9+ and the reportlab package. The file format is in references/plan-format.md.
 Whose name, logo and website the PDF carries comes from assets/brand.json.
@@ -11,6 +12,7 @@ Exit codes: 0 drawn or checked, 1 the plan needs changes (each one is listed), 2
 """
 
 import argparse
+import json
 import os
 import sys
 
@@ -21,7 +23,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Draw a Week Board PDF from a plan file.")
     parser.add_argument("plan", nargs="?", help="the plan file (JSON)")
-    parser.add_argument("-o", "--output", help='where to write the PDF (default: "Week Plan <first date>.pdf" beside it)')
+    parser.add_argument("-o", "--output", help='where to write it (default: "Week Plan <first date>.pdf" beside the plan)')
+    parser.add_argument("--html", action="store_true", help="write the HTML page to tick tasks off, instead of the PDF")
     parser.add_argument("--check", action="store_true", help="check the plan and its layout without drawing")
     parser.add_argument("--version", action="store_true", help="print the tool's version")
     args = parser.parse_args(argv)
@@ -33,7 +36,7 @@ def main(argv=None):
               file=sys.stderr)
         return 3
 
-    from week_tool import VERSION, brand, layout, model, pages, theme
+    from week_tool import VERSION, brand, layout, model, page, pages, theme
 
     if args.version:
         print("week-planner drawing tool %s" % VERSION)
@@ -68,12 +71,18 @@ def main(argv=None):
     kind = "Weekend Plan" if plan.mode == "weekend" else "Week Plan"
     if plan.reviewed:
         kind = "Week Review"
-    output = args.output or os.path.join(os.path.dirname(os.path.abspath(args.plan)),
-                                         "%s %s.pdf" % (kind, plan.days[0].date.isoformat()))
+    output = args.output or os.path.join(os.path.dirname(os.path.abspath(args.plan)), "%s %s.%s" % (
+        kind, plan.days[0].date.isoformat(), "html" if args.html else "pdf"))
     folder = os.path.dirname(os.path.abspath(output))
     if not os.path.isdir(folder):
         print("The folder for the PDF does not exist: %s" % folder, file=sys.stderr)
         return 2
+    if args.html:
+        with open(args.plan, encoding="utf-8") as handle:
+            raw = json.load(handle)
+        page.write(plan, raw, os.path.basename(args.plan), owner, output)
+        print("Wrote the page to tick off: %s" % os.path.abspath(output))
+        return 0
     total = pages.build(plan, columns, owner, output)
     print("Drew %d page%s: %s" % (total, "" if total == 1 else "s", os.path.abspath(output)))
     return 0

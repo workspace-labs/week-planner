@@ -274,5 +274,81 @@ class CarryClaims(unittest.TestCase):
         self.assertEqual(p.unplanned_carry_over, [])
 
 
+class GoalAnswers(unittest.TestCase):
+    """0.3.0: what could stop them, their first step, and their own verdict in the review."""
+
+    GOAL = {"goal": "Finish the Docker skill", "why": "People asked me to build it",
+            "done_when": "Every test passes on Mac, Windows and Linux", "risk": "Not enough time",
+            "first_step": "Run the full test on Mac"}
+
+    def problems(self, data):
+        with self.assertRaises(model.PlanError) as caught:
+            model.parse(data)
+        return " ".join(caught.exception.problems)
+
+    def test_answers_are_kept(self):
+        goal = model.parse(support.plan(goals=[dict(self.GOAL)])).goal_details[0]
+        self.assertEqual((goal.risk, goal.first_step, goal.result), ("Not enough time", "Run the full test on Mac", ""))
+
+    def test_answers_have_limits(self):
+        self.assertIn('"risk" is too long', self.problems(support.plan(goals=[dict(self.GOAL, risk="x " * 46)])))
+
+    def test_result_only_in_a_review(self):
+        self.assertIn("not reviewed yet", self.problems(support.plan(goals=[dict(self.GOAL, result="reached")])))
+
+    def test_result_words(self):
+        data = support.plan(goals=[dict(self.GOAL, result="nearly")])
+        for day in data["days"]:
+            for item in day["items"]:
+                if item.get("kind") != "buffer":
+                    item["done"] = True
+        self.assertIn('"result" must be one of "reached", "close", "not yet"', self.problems(data))
+        data["goals"][0]["result"] = "not yet"
+        self.assertEqual(model.parse(data).goal_details[0].result, "not yet")
+
+    def test_goal_page_is_for_a_week(self):
+        self.assertTrue(model.parse(support.plan(goals=["Ship it"])).goal_page)
+        self.assertFalse(model.parse(support.plan()).goal_page)
+        weekend = support.plan(mode="weekend", goals=["Ship it"])
+        weekend["days"] = weekend["days"][:2]
+        self.assertFalse(model.parse(weekend).goal_page)
+
+
+class Advice(unittest.TestCase):
+    """0.3.0: the AI's tips quote the person's own words from the plan, or are refused."""
+
+    def tip(self, **change):
+        tip = {"title": "Decide early", "text": "The choice blocks the checks, so make it first.",
+               "because": "Pick a direction"}
+        tip.update(change)
+        return tip
+
+    def problems(self, data):
+        with self.assertRaises(model.PlanError) as caught:
+            model.parse(data)
+        return " ".join(caught.exception.problems)
+
+    def test_quote_from_the_plan(self):
+        p = model.parse(support.plan(advice=[self.tip(because='"pick a  DIRECTION"')]))
+        self.assertEqual(p.advice[0].because, "pick a DIRECTION")
+        goal = {"goal": "Ship it", "risk": "The supplier is slow to reply"}
+        model.parse(support.plan(goals=[goal], advice=[self.tip(because="supplier is slow")]))
+
+    def test_invented_reason_is_refused(self):
+        self.assertIn('"because" must repeat', self.problems(support.plan(advice=[self.tip(because="You love mornings")])))
+
+    def test_needs_title_text_because(self):
+        self.assertIn('Advice 1 needs "title" and "because"', self.problems(support.plan(advice=[{"text": "Rest."}])))
+
+    def test_at_most_five_and_no_unknown_fields(self):
+        text = self.problems(support.plan(advice=[self.tip()] * 6))
+        self.assertIn('"advice" holds at most 5', text)
+        self.assertIn('unknown field "link"', self.problems(support.plan(advice=[self.tip(link="https://x")])))
+
+    def test_check_is_kept(self):
+        tip = model.parse(support.plan(advice=[self.tip(check="Check the opening hours")])).advice[0]
+        self.assertEqual(tip.check, "Check the opening hours")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -15,8 +15,11 @@ drawn pages too:
 ```bash
 for ex in week weekend week-reviewed; do
   python3 skills/week-planner/scripts/draw_week.py skills/week-planner/examples/$ex.json -o "/tmp/$ex.pdf"
+  python3 skills/week-planner/scripts/draw_week.py skills/week-planner/examples/$ex.json --html -o "/tmp/$ex.html"
 done
 ```
+
+The HTML page's one browser test needs Google Chrome; without it that test is skipped, never passed.
 
 ## Rules for this repository
 
