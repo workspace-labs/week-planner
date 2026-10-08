@@ -113,7 +113,8 @@ to answer it. No advice that fits? Leave `advice` out; the page is then not draw
    python3 <this skill's folder>/scripts/draw_week.py plan.json --html -o "Week Plan 2026-10-04.html"
    ```
    One file, no internet needed. They click a task when it is done; the score, the day totals and the
-   goals move with it. **Save plan** downloads the plan file with their ticks in it, under the plan file's
+   goals move with it. On a phone it opens on **today**: day tabs along the top, today's tasks as big
+   cards, and the score with Save plan fixed at the bottom; a computer shows the whole board. **Save plan** downloads the plan file with their ticks in it, under the plan file's
    own name. Tell them to keep it with the week's PDF: the review reads it.
    It needs Python 3.9+ and `reportlab` (already in Claude's and ChatGPT's sandboxes; elsewhere
    `pip install reportlab`, asking first if your rules say installs need approval).

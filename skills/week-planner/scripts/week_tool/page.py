@@ -38,7 +38,8 @@ def view(plan, raw, plan_name, brand):
     days = []
     for day in plan.days:
         name, number, month = day_name(day.date).split()
-        days.append({"name": name.upper(), "number": number, "month": month, "free": day.free_hours, "off": day.off,
+        days.append({"date": day.date.isoformat(), "name": name.upper(), "number": number, "month": month,
+                     "free": day.free_hours, "off": day.off,
                      "items": [{"title": i.title, "kind": i.kind, "stage": i.stage or "", "project": i.project,
                                 "hours": i.hours, "time": hours_text(i.hours), "done": bool(i.done)} for i in day.items]})
     logo = ""
@@ -185,6 +186,32 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
 .because { font-size: 11.5px; color: var(--ink-soft); border-left: 3px solid var(--tag-line); padding: 2px 0 2px 10px; }
 .because b { display: block; color: var(--accent); font-weight: 700; letter-spacing: .1em; font-size: 9.5px; margin-bottom: 2px; }
 .tip .pill { align-self: flex-start; }
+.phone-week { display: none; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; margin-top: 14px; padding-bottom: 4px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab { flex: none; width: 52px; border: 1px solid var(--line-soft); background: var(--space); border-radius: 12px; padding: 7px 0 6px; text-align: center; cursor: pointer; }
+.tab .n { display: block; font-size: 9px; font-weight: 700; letter-spacing: .14em; color: var(--ink-soft); }
+.tab .num { display: block; font-size: 17px; font-weight: 800; margin-top: 1px; }
+.tab .dots { display: flex; justify-content: center; gap: 3px; margin-top: 3px; height: 5px; }
+.tab .dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--box-stroke); }
+.tab .dots i.done { background: var(--accent); }
+.tab.sel { background: var(--accent); border-color: var(--accent); }
+.tab.sel .n, .tab.sel .num { color: var(--white); }
+.tab.sel .dots i { background: rgba(255,255,255,.45); }
+.tab.sel .dots i.done { background: var(--white); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.panel { margin-top: 14px; }
+.dayhead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.dayhead b { font-size: 18px; font-weight: 800; }
+.dayhead b small { font-size: 9.5px; font-weight: 700; letter-spacing: .14em; color: var(--accent); margin-left: 8px; vertical-align: 3px; }
+.dayhead span { font-size: 11.5px; color: var(--ink-faint); font-weight: 600; }
+.card.big { border-radius: 12px; padding: 12px 46px 12px 16px; margin-bottom: 10px; min-height: 56px; }
+.card.big::before { top: 9px; bottom: 9px; width: 4px; }
+.card.big .t { font-size: 14px; }
+.card.big .d { font-size: 11.5px; }
+.card.big .tick { top: 50%; right: 14px; transform: translateY(-50%); width: 22px; height: 22px; border-width: 2px; }
+.card.big.done .tick::after { left: 6px; top: 2.5px; width: 5px; height: 10px; border-width: 0 2.2px 2.2px 0; }
+.panel .buffer { border-radius: 12px; padding: 12px 16px; font-size: 13px; }
 @media (max-width: 800px) {
   body { padding: 16px 0 40px; }
   .page { padding: 20px 16px; border-radius: 0; min-height: 0; }
@@ -192,6 +219,21 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
   .g1-body, .gsmall, .advice { grid-template-columns: 1fr !important; }
   .stack { border-right: 0; border-bottom: 1px solid var(--line-soft); }
   .tip.wide { grid-column: auto; }
+}
+@media (max-width: 640px) {
+  body { padding-bottom: 96px; }
+  .scroll { display: none; }
+  .phone-week { display: block; }
+  .score { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; margin: 0; border-radius: 0; border-width: 1px 0 0;
+           background: rgba(255,255,255,.97); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 12px; flex-wrap: nowrap; }
+  .score .eyebrow { display: none; }
+  .score .big { font-size: 15px; min-width: 0; white-space: nowrap; }
+  .squares { flex: 1; flex-wrap: nowrap; gap: 3px; }
+  .squares i { flex: 1; width: auto; max-width: 16px; height: 7px; }
+  .save { padding: 11px 14px; font-size: 13px; }
+  .saved { position: absolute; left: 0; right: 0; bottom: 100%; background: var(--white); padding: 8px 16px; border-top: 1px solid var(--line-soft); }
+  .saved:empty { display: none; }
+  .hint { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 @media print { body { background: #fff; padding: 0; } .save, .saved, .hint { display: none; }
@@ -267,26 +309,85 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
   var board = el("div", "board");
   board.style.gridTemplateColumns = "repeat(" + V.days.length + ", minmax(0, 1fr))";
   if (V.days.length < 4) board.style.maxWidth = (V.days.length * 220) + "px";
-  V.days.forEach(function (day) {
-    var col = add(el("div", "day"), el("div", "dname", day.name), add(el("div", "dnum", day.number), el("small", "", day.month)));
-    if (day.off && !day.items.length) add(col, el("div", "rest", "Rest day"));
-    day.items.forEach(function (item) {
-      if (item.kind === "buffer") { add(col, add(el("div", "buffer", item.title), el("small", "", item.time))); return; }
-      var kind = item.kind === "decision" || item.kind === "personal" ? item.kind : (item.stage || "plan");
-      var card = el("button", "card " + kind);
-      card.type = "button";
-      var detail = [item.project, item.kind === "decision" ? "your decision" : item.kind === "personal" ? "personal" : item.stage, item.time]
-        .filter(Boolean).join(" · ");
-      add(card, el("span", "t", item.title), el("span", "d", detail), el("span", "tick"));
-      card.querySelector(".tick").setAttribute("aria-hidden", "true");
-      card.addEventListener("click", function () { item.done = !item.done; update(); });
-      watchers.push(function () { card.classList.toggle("done", item.done); card.setAttribute("aria-pressed", String(item.done)); });
-      add(col, card);
+  function card(d, i, extra) {                    // a task card; the board and the phone view each make their own
+    var item = V.days[d].items[i];
+    var kind = item.kind === "decision" || item.kind === "personal" ? item.kind : (item.stage || "plan");
+    var node = el("button", "card " + kind + (extra ? " " + extra : ""));
+    node.type = "button";
+    node.setAttribute("data-day", d);
+    node.setAttribute("data-item", i);
+    var detail = [item.project, item.kind === "decision" ? "your decision" : item.kind === "personal" ? "personal" : item.stage, item.time]
+      .filter(Boolean).join(" · ");
+    var tick = el("span", "tick");
+    tick.setAttribute("aria-hidden", "true");
+    add(node, el("span", "t", item.title), el("span", "d", detail), tick);
+    node.addEventListener("click", function () { item.done = !item.done; update(); });
+    return node;
+  }
+  function items(parent, d, extra) {
+    var day = V.days[d];
+    if (day.off && !day.items.length) add(parent, el("div", "rest", "Rest day"));
+    day.items.forEach(function (item, i) {
+      add(parent, item.kind === "buffer" ? add(el("div", "buffer", item.title), el("small", "", item.time)) : card(d, i, extra));
     });
-    var total = el("div", "dtotal", day.off ? "Day off" : short(day.items.reduce(function (a, i) { return a + i.hours; }, 0)) + " of " + hours(day.free));
-    add(board, add(col, total));
+  }
+  function dayTotal(day) {
+    return day.off ? "Day off" : short(day.items.reduce(function (a, i) { return a + i.hours; }, 0)) + " of " + hours(day.free);
+  }
+  watchers.push(function () {                     // every copy of a card, and each day tab's dots, show its tick
+    Array.prototype.forEach.call(root.querySelectorAll("[data-day]"), function (node) {
+      var done = V.days[node.getAttribute("data-day")].items[node.getAttribute("data-item")].done;
+      node.classList.toggle("done", done);
+      if (node.tagName === "BUTTON") node.setAttribute("aria-pressed", String(done));
+    });
+  });
+  V.days.forEach(function (day, d) {
+    var col = add(el("div", "day"), el("div", "dname", day.name), add(el("div", "dnum", day.number), el("small", "", day.month)));
+    items(col, d);
+    add(board, add(col, el("div", "dtotal", dayTotal(day))));
   });
   add(body, add(el("div", "scroll"), board));
+
+  // ---- on a phone the board gives way to one day at a time: tabs for the days, today picked first
+  var now = window.WEEK_PLANNER_TODAY || (function (t) {
+    function two(n) { return (n < 10 ? "0" : "") + n; }
+    return t.getFullYear() + "-" + two(t.getMonth() + 1) + "-" + two(t.getDate());
+  })(new Date());
+  var today = -1;
+  V.days.forEach(function (day, d) { if (day.date === now) today = d; });
+  var shown = today >= 0 ? today : (now > V.days[V.days.length - 1].date ? V.days.length - 1 : 0);
+  var tabs = el("div", "tabs"), panel = el("div", "panel");
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", "Days");
+  V.days.forEach(function (day, d) {
+    var tab = el("button", "tab");
+    tab.type = "button";
+    var dots = el("span", "dots");
+    day.items.forEach(function (item, i) {
+      if (item.kind === "buffer") return;
+      var dot = el("i");
+      dot.setAttribute("data-day", d);
+      dot.setAttribute("data-item", i);
+      add(dots, dot);
+    });
+    add(tab, el("span", "n", day.name), el("span", "num", day.number), dots);
+    tab.addEventListener("click", function () { shown = d; showDay(); });
+    add(tabs, tab);
+  });
+  function showDay() {
+    var day = V.days[shown];
+    Array.prototype.forEach.call(tabs.children, function (tab, d) {
+      tab.classList.toggle("sel", d === shown);
+      tab.setAttribute("aria-pressed", String(d === shown));
+    });
+    panel.textContent = "";
+    var name = add(el("b", "", day.name.charAt(0) + day.name.slice(1).toLowerCase() + " " + day.number + " " + day.month),
+                   shown === today ? el("small", "", "TODAY") : null);
+    add(panel, add(el("div", "dayhead"), name, el("span", "", dayTotal(day))));
+    items(panel, shown, "big");
+    update();
+  }
+  add(body, add(el("div", "phone-week"), tabs, panel));
   var big = el("span", "big"), squares = el("span", "squares"), saved = el("span", "saved"), save = el("button", "save", "Save plan");
   save.type = "button";
   big.setAttribute("aria-live", "polite");
@@ -402,7 +503,7 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
     setTimeout(function () { URL.revokeObjectURL(link.href); }, 1000);
     saved.textContent = "Saved as " + V.file + " in your downloads. Keep it with your week plan: the review reads it.";
   });
-  update();
+  showDay();
 })();
 </script>
 </body>

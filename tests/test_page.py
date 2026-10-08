@@ -25,7 +25,7 @@ window.addEventListener("load", function () {
   var savedText = null;
   URL.createObjectURL = function (blob) { blob.text().then(function (t) { savedText = t; finish(); }); return "#saved"; };
   HTMLAnchorElement.prototype.click = function () { out.downloadName = this.download; };   // no real download
-  var cards = document.querySelectorAll("button.card");
+  var cards = document.querySelectorAll(".board button.card");
   out.cards = cards.length;
   out.before = document.querySelector(".score .big").textContent;
   out.goalBefore = (document.querySelector(".progtxt") || {}).textContent || "";
@@ -44,6 +44,45 @@ window.addEventListener("load", function () {
   }
 });
 </script>"""
+
+
+# The phone view (0.4.0), at a phone's width with "today" pinned to Tue 6 Oct.
+PHONE_PROBE = r"""<script>
+window.addEventListener("load", function () {
+  var out = {}, style = function (sel) { return getComputedStyle(document.querySelector(sel)); };
+  var titles = function () { return Array.prototype.map.call(document.querySelectorAll(".panel .card .t"), function (n) { return n.textContent; }); };
+  out.board = style(".scroll").display;
+  out.phone = style(".phone-week").display;
+  out.bar = style(".score").position;
+  var tabs = document.querySelectorAll(".tab");
+  out.tabs = tabs.length;
+  out.selected = Array.prototype.indexOf.call(tabs, document.querySelector(".tab.sel"));
+  out.head = document.querySelector(".dayhead").textContent;
+  out.today = titles();
+  document.querySelector(".panel .card").click();
+  out.after = document.querySelector(".score .big").textContent;
+  out.boardTwin = document.querySelectorAll(".board .card.done").length;
+  out.dots = document.querySelectorAll(".tab.sel .dots i.done").length;
+  tabs[3].click();
+  out.wed = titles();
+  out.overflow = document.documentElement.scrollWidth - window.innerWidth;
+  var pre = document.createElement("pre"); pre.id = "probe"; pre.textContent = JSON.stringify(out);
+  document.body.appendChild(pre);
+});
+</script>"""
+
+
+def chrome(page, html, tmp, size="800,600", before=""):
+    """Runs the page in headless Chrome with a probe; returns what the probe found."""
+    with open(page, "w", encoding="utf-8") as handle:
+        handle.write(html.replace("<body>", "<body>" + before, 1))
+    dom = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-first-run", "--virtual-time-budget=4000",
+                          "--window-size=" + size, "--user-data-dir=" + os.path.join(tmp, "chrome-" + size),
+                          "--dump-dom", "file://" + page], capture_output=True, text=True, timeout=60).stdout
+    probe = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
+    if not probe:
+        return None
+    return json.loads(probe.group(1).replace("&quot;", '"').replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"))
 
 
 def run(*args):
@@ -105,14 +144,8 @@ class Page(unittest.TestCase):
     def test_click_moves_the_score_and_save_keeps_the_ticks(self):
         data = self.example("week")
         out, html = self.write(data, "Week Plan 2026-10-04.json")
-        with open(out, "w", encoding="utf-8") as handle:
-            handle.write(html.replace("</body>", PROBE + "</body>"))
-        dom = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-first-run", "--virtual-time-budget=4000",
-                              "--user-data-dir=" + os.path.join(self.tmp, "chrome"), "--dump-dom", "file://" + out],
-                             capture_output=True, text=True, timeout=60).stdout
-        probe = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
-        self.assertTrue(probe, "the page ran in Chrome")
-        result = json.loads(probe.group(1).replace("&quot;", '"').replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&"))
+        result = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertTrue(result, "the page ran in Chrome")
         work = [i for d in data["days"] for i in d["items"] if i.get("kind") != "buffer"]
         self.assertEqual(result["cards"], len(work))
         self.assertEqual(result["pages"], 3, "board, top goals, advice")
@@ -138,6 +171,22 @@ class Page(unittest.TestCase):
         with open(path, "w") as handle:
             handle.write(result["saved"])
         self.assertEqual(run(path, "--check")[0], 0, "the saved plan draws again, as a review")
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_phone_shows_today_first(self):
+        out, html = self.write(self.example("week"))
+        result = chrome(out, html.replace("</body>", PHONE_PROBE + "</body>"), self.tmp, size="500,900",
+                        before='<script>window.WEEK_PLANNER_TODAY = "2026-10-06";</script>')
+        self.assertTrue(result, "the page ran in Chrome")
+        self.assertEqual((result["board"], result["phone"]), ("none", "block"), "one day at a time, not the board")
+        self.assertEqual(result["bar"], "fixed", "the score and Save stay at the bottom")
+        self.assertEqual((result["tabs"], result["selected"]), (7, 2), "opens on today, Tuesday")
+        self.assertIn("TODAY", result["head"])
+        self.assertEqual(result["today"], ["Send the report for review", "Gym"])
+        self.assertEqual(result["after"], "1 of 10 done")
+        self.assertEqual((result["boardTwin"], result["dots"]), (1, 1), "the board's card and the day's dot tick too")
+        self.assertEqual(result["wed"], ["Review the new website", "Approve the budget: yes or no"])
+        self.assertLessEqual(result["overflow"], 0, "nothing runs off the side of the screen")
 
 
 if __name__ == "__main__":

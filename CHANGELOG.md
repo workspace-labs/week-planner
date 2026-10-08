@@ -10,6 +10,25 @@ All notable changes to this project. The version is `VERSION` in
 - README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
   findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
 
+## [0.4.0] - 2026-10-09
+
+The owner picked option A of three phone designs (`samples/mobile-demo`, outside the repository): today
+first.
+
+### Added
+
+- **The HTML page on a phone** (640 px wide or less). The board gives way to one day at a time: tabs for the
+  days along the top, with a dot per task that fills in when it is done; it opens on **today** (the first
+  day before the week starts, the last after it ends). Today's tasks are big cards for a thumb, and the
+  score with Save plan stays fixed at the bottom of the screen. The Top goals and advice pages follow
+  below. A computer still shows the whole board; ticking a card in either view ticks it everywhere.
+
+### Tests
+
+- 101 tests (was 100): at a phone's width in a real headless Chrome, with "today" pinned to a Tuesday, the
+  page opens on that Tuesday, a tick there moves the score and ticks the board's card and the day's dot, the
+  bar stays fixed, another tab shows its own tasks, and nothing runs off the side of the screen.
+
 ## [0.3.0] - 2026-10-09
 
 The owner's next step after his first real week: a week you tick off as you go, goals that look as serious

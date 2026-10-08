@@ -14,7 +14,7 @@ done and carries the rest over.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.3.0** · **100 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 and 0.3.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
+**Version 0.4.0** · **101 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 to 0.4.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -48,7 +48,8 @@ A weekend plan stays one page, with its goal under the board.
 
 **The HTML page** shows the same three pages. Click a task when it is done: the score, the day totals and
 the goals move at once. **Save plan** downloads the plan file with your ticks, for the review. It is one
-file that needs no internet.
+file that needs no internet. **On a phone** it opens on today: tabs for the days, today's tasks as big cards
+for your thumb, and the score with Save plan always at the bottom.
 
 The look is the WorkSpace Labs house look, the same family as the workflow-project PDF: Plus Jakarta Sans,
 a light ground, one blue accent, red only for "waiting on you".
@@ -96,7 +97,7 @@ The plan file format is in `skills/week-planner/references/plan-format.md`.
 
 We do not call it built until it is proven. Everything below can be checked.
 
-### 100 automated tests, all passing
+### 101 automated tests, all passing
 
 Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back; Google
 Chrome for the one that clicks the HTML page in a real browser):
@@ -105,23 +106,23 @@ Chrome for the one that clicks the HTML page in a real browser):
 python3 -B -m unittest discover -s tests
 ```
 
-On version 0.3.0 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **100 passed, 0 skipped, 0 failed.**
+On version 0.4.0 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **101 passed, 0 skipped, 0 failed.**
 
 | What is tested | Tests |
 |---|---:|
 | The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links, goals with their why, done-when, risk, first step, project and verdict, and advice whose "because" must be the person's own words | 53 |
 | The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split, columns end together under the busiest day | 9 |
 | The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file, the focus under the board (never touching it) or on its own page when the week is packed, the Top goals and advice pages (their words, a page too full or a word too wide refused, "and N more" past 8 cards) | 33 |
-| The HTML page: its default name, no network, the plan's words shown as text never markup, a refused plan writes nothing, and in a real Chrome: a click moves the score, Save plan hands back the plan file with only the ticks changed, and that file draws again | 5 |
-| **Total** | **100** |
+| The HTML page: its default name, no network, the plan's words shown as text never markup, a refused plan writes nothing, and in a real Chrome: a click moves the score, Save plan hands back the plan file with only the ticks changed, and that file draws again; at a phone's width it opens on today, a tick there ticks the board too, the bar stays at the bottom, and nothing runs off the side | 6 |
+| **Total** | **101** |
 
 ### Reviewed by a second agent
 
 A second AI agent, Codex, reviewed the skill in a fresh session: it had not watched the build and checked
 everything from the repository itself. Over five rounds it found **7 real problems**. Each was fixed with a
 test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**. That review covers 0.1.1; the 0.2.0 layout change
-(short columns, focus under the board) and 0.3.0 (Top goals and advice pages, the HTML page) have not been
-reviewed yet.
+(short columns, focus under the board) 0.3.0 (Top goals and advice pages, the HTML page) and 0.4.0 (the phone
+view) have not been reviewed yet.
 
 | Finding | What was wrong | Closed in round |
 |---|---|---:|
@@ -157,8 +158,9 @@ So you know exactly what the proof covers:
 - A real Backloop board (a made-up board was used).
 - 0.3.0 in a real planning conversation: the new goal questions and the advice were tried on the owner in
   chat before the build, not yet through the installed skill.
-- The HTML page in Safari, Firefox and on a phone (Chrome is tested; Safari showed the demo it was built
-  from).
+- The HTML page in Safari, Firefox and on a real iPhone (Chrome is tested, including at a phone's width;
+  Safari showed the demo it was built from). How an iPhone opens the file (from Files, or in Safari) is not
+  tested yet.
 
 ## Limits
 
