@@ -14,7 +14,7 @@ done and carries the rest over.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.4.0** · **101 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 to 0.4.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
+**Version 0.4.1** · **101 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 to 0.4.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -50,6 +50,8 @@ A weekend plan stays one page, with its goal under the board.
 the goals move at once. **Save plan** downloads the plan file with your ticks, for the review. It is one
 file that needs no internet. **On a phone** it opens on today: tabs for the days, today's tasks as big cards
 for your thumb, and the score with Save plan always at the bottom.
+
+![The HTML page on an iPhone: today first with day tabs and ticks, the Top goals page, and the advice page, with the score and Save plan at the bottom](media/week-planner-iphone.png)
 
 The look is the WorkSpace Labs house look, the same family as the workflow-project PDF: Plus Jakarta Sans,
 a light ground, one blue accent, red only for "waiting on you".
@@ -106,7 +108,7 @@ Chrome for the one that clicks the HTML page in a real browser):
 python3 -B -m unittest discover -s tests
 ```
 
-On version 0.4.0 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **101 passed, 0 skipped, 0 failed.**
+On version 0.4.1 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **101 passed, 0 skipped, 0 failed.**
 
 | What is tested | Tests |
 |---|---:|
@@ -185,7 +187,7 @@ skills/week-planner/        the skill (what gets installed)
   assets/                   the fonts (SIL Open Font License), brand.json and the logo
 tests/                      the checks (not shipped with the skill)
 docs/                       scope, the decision record, and the skill's own workflow PDF
-media/                      the picture at the top of this page
+media/                      the pictures on this page
 ```
 
 ## Credits and licence

@@ -225,7 +225,7 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
   .scroll { display: none; }
   .phone-week { display: block; }
   .score { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; margin: 0; border-radius: 0; border-width: 1px 0 0;
-           background: rgba(255,255,255,.97); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 12px; flex-wrap: nowrap; }
+           background: var(--white); padding: 10px 16px calc(10px + env(safe-area-inset-bottom)); gap: 12px; flex-wrap: nowrap; }
   .score .eyebrow { display: none; }
   .score .big { font-size: 15px; min-width: 0; white-space: nowrap; }
   .squares { flex: 1; flex-wrap: nowrap; gap: 3px; }

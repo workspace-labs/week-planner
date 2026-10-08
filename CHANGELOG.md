@@ -10,6 +10,18 @@ All notable changes to this project. The version is `VERSION` in
 - README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
   findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
 
+## [0.4.1] - 2026-10-09
+
+### Fixed
+
+- **The phone's bottom bar is solid.** It was 97% white, so the words scrolling under the score and Save plan
+  showed through faintly; seen in the iPhone picture made for the README.
+
+### Docs
+
+- README: a picture of the HTML page on an iPhone (`media/week-planner-iphone.png`), drawn from the skill's
+  own output for the example week: today first, Top goals, advice.
+
 ## [0.4.0] - 2026-10-09
 
 The owner picked option A of three phone designs (`samples/mobile-demo`, outside the repository): today
