@@ -99,7 +99,9 @@ to answer it. No advice that fits? Leave `advice` out; the page is then not draw
 **Where code can run** (coding agents, and chat apps with code execution):
 
 1. Write the plan file as JSON. Format: [references/plan-format.md](references/plan-format.md); examples in
-   `examples/`.
+   `examples/`. Choose the output folder from the person's own instructions first, before writing any
+   files; put the JSON, PDF and requested HTML next to each other there. Do not stage plans in a project
+   folder when they have named another destination. Use UTF-8 (a Windows UTF-8 BOM also works).
 2. Draw it:
    ```bash
    python3 <this skill's folder>/scripts/draw_week.py plan.json -o "Week Plan 2026-10-04.pdf"
@@ -118,16 +120,17 @@ to answer it. No advice that fits? Leave `advice` out; the page is then not draw
    own name. Tell them to keep it with the week's PDF: the review reads it.
    It needs Python 3.9+ and `reportlab` (already in Claude's and ChatGPT's sandboxes; elsewhere
    `pip install reportlab`, asking first if your rules say installs need approval).
+   On Windows, use `python` if `python3` is not available. Quote paths that contain spaces.
 3. It checks everything first. If it refuses, it lists numbered reasons: **change exactly those in the
    plan file and run it again.** Never draw the PDF another way to get around a refusal, and never edit
    the tool to silence one. It also names each carried-over item no card takes on: if you did plan one
    under a shorter title, add the `"from_last_week"` link to that card.
 4. Look at the pages if you can. Render them into a new empty folder, so no file of the person's is ever
    overwritten; the pictures are only for your check, not part of the result:
-   ```bash
-   preview="$(mktemp -d)" && pdftoppm -r 70 -png "<file>.pdf" "$preview/page" && echo "$preview"
+   ```text
+   python -c "import subprocess, sys, tempfile; from pathlib import Path; preview = Path(tempfile.mkdtemp(prefix='week-preview-')); subprocess.run(['pdftoppm', '-r', '70', '-png', sys.argv[1], str(preview / 'page')], check=True); print(preview)" "<file>.pdf"
    ```
-   No `mktemp`? Make any new empty folder and render into it. If you cannot render pages, say so.
+   This works in Windows, macOS and Linux shells. If you cannot render pages, say so.
 5. Save the PDF **and the plan file next to it**, so the review can reopen it: where the person's own
    instructions say; else a `week-plans/` folder in the current working folder; in a chat sandbox, its
    outputs folder. Never hard-code a path from another machine.
@@ -141,9 +144,10 @@ time, as on the PDF), what is waiting on them, and where the file is. Then stop.
 
 ## 6. Review the week
 
-1. Open last week's plan file (or ask them to paste it, or the table). If they ticked tasks on the HTML
-   page and pressed **Save plan**, the saved file (usually in their Downloads) already holds the ticks:
-   use it.
+1. Open last week's plan file from the folder in the person's own instructions, or the delivery folder
+   from step 5 (or ask them to paste it, or the table). Check its dates so a different week's file is not
+   reviewed. If they ticked tasks on the HTML page and pressed **Save plan**, use that matching saved
+   file, which may still be in Downloads; keep it beside the PDF in their chosen folder.
 2. Ask which items got done, as one click list. Ticks already saved from the HTML page are read back for a
    quick "still right?", not asked again. Every item except buffers gets `"done": true` or `false`; the
    tool refuses a review with an item left unmarked.

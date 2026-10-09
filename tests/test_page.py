@@ -10,12 +10,19 @@ import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from pathlib import Path
 
 import support
 import draw_week
 
-CHROME = next((p for p in ("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-                           shutil.which("google-chrome") or "", shutil.which("chromium") or "") if p and os.path.exists(p)), "")
+CHROME = next((p for p in (
+    os.environ.get("CHROME_BIN", ""),
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    shutil.which("google-chrome") or "", shutil.which("chromium") or "",
+    os.path.join(os.environ.get("PROGRAMFILES", ""), "Google", "Chrome", "Application", "chrome.exe"),
+    os.path.join(os.environ.get("PROGRAMFILES(X86)", ""), "Google", "Chrome", "Application", "chrome.exe"),
+    os.path.join(os.environ.get("LOCALAPPDATA", ""), "Google", "Chrome", "Application", "chrome.exe"),
+) if p and os.path.isfile(p)), "")
 
 # Run inside the page after it loads: click the first card, read what moved, then press Save plan and
 # catch the file it would hand over. The answers land in a <pre id="probe"> for --dump-dom to read.
@@ -35,6 +42,7 @@ window.addEventListener("load", function () {
   out.goalAfter = (document.querySelector(".progtxt") || {}).textContent || "";
   out.pages = document.querySelectorAll("section.page").length;
   out.text = document.body.innerText;
+  out.focus = (document.querySelector(".focus") || {}).innerText || "";
   document.querySelector("button.save").click();
   out.savedNote = document.querySelector(".saved").textContent;
   function finish() {
@@ -78,7 +86,8 @@ def chrome(page, html, tmp, size="800,600", before=""):
         handle.write(html.replace("<body>", "<body>" + before, 1))
     dom = subprocess.run([CHROME, "--headless=new", "--disable-gpu", "--no-first-run", "--virtual-time-budget=4000",
                           "--window-size=" + size, "--user-data-dir=" + os.path.join(tmp, "chrome-" + size),
-                          "--dump-dom", "file://" + page], capture_output=True, text=True, timeout=60).stdout
+                          "--dump-dom", Path(page).resolve().as_uri()], capture_output=True,
+                         text=True, encoding="utf-8", timeout=60).stdout
     probe = re.search(r'<pre id="probe">(.*?)</pre>', dom, re.S)
     if not probe:
         return None
@@ -139,6 +148,74 @@ class Page(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn('"because" must repeat', stderr)
         self.assertEqual(os.listdir(self.tmp), ["bad.json"])
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_edited_plan_does_not_inherit_another_tasks_ticks(self):
+        data = support.plan()
+        out, html = self.write(data)
+        first = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertEqual(first["after"], "1 of 2 done")
+        # Regenerate the same file, title, dates and card count with different work.
+        data["days"][0]["items"][0]["title"] = "Choose another direction"
+        out, html = self.write(data)
+        second = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertEqual(second["before"], "0 of 2 done", "new work must not start checked")
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_unchanged_plan_keeps_its_ticks_on_reopen(self):
+        out, html = self.write(support.plan())
+        first = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        second = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertEqual((first["after"], second["before"]), ("1 of 2 done", "1 of 2 done"))
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_new_review_marks_are_not_replaced_by_old_browser_ticks(self):
+        data = support.plan()
+        out, html = self.write(data)
+        chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        for day in data["days"]:
+            for item in day["items"]:
+                if item.get("kind") != "buffer":
+                    item["done"] = True
+        out, html = self.write(data)
+        review = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertEqual(review["before"], "2 of 2 done", "the updated source marks take precedence")
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_focus_keeps_unplanned_carry_and_updates_decisions(self):
+        data = support.plan(carried_over=["Book the dentist appointment"])
+        out, html = self.write(data)
+        result = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertIn("Book the dentist appointment", result["text"])
+        self.assertIn("MOVES TO NEXT WEEK", result["text"])
+        self.assertIn("Run the checks", result["text"])
+        # The first card is the decision the probe just completed.
+        self.assertNotIn("Pick a direction", result["focus"])
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_weekend_shows_its_goal_details(self):
+        data = {"mode": "weekend", "goals": [{"goal": "Fix the bicycle", "why": "Cycle to work",
+                "done_when": "The bicycle is ready", "project": "Bicycle"}],
+                "days": [{"date": "2026-10-16", "free_hours": 2,
+                          "items": [{"title": "Repair the tyre", "hours": 1, "project": "Bicycle"}]}]}
+        out, html = self.write(data)
+        result = chrome(out, html.replace("</body>", PROBE + "</body>"), self.tmp)
+        self.assertIn("Cycle to work", result["text"])
+        self.assertIn("The bicycle is ready", result["text"])
+        self.assertIn("This week", result["text"])
+
+    @unittest.skipUnless(CHROME, "needs Chrome")
+    def test_phone_wraps_long_titles_that_fit_the_pdf(self):
+        data = support.plan(title="W" * 28, goals=[{"goal": "W" * 35, "why": "Make room for next week"}])
+        out, html = self.write(data)
+        probe = '''<script>window.addEventListener("load", function () {
+          var p = document.createElement("pre"); p.id = "probe";
+          p.textContent = JSON.stringify({overflow: document.documentElement.scrollWidth - window.innerWidth,
+                                         width: window.innerWidth}); document.body.appendChild(p);
+        });</script>'''
+        result = chrome(out, html.replace("</body>", probe + "</body>"), self.tmp, size="360,800")
+        self.assertLessEqual(result["width"], 640, "the phone layout is active")
+        self.assertLessEqual(result["overflow"], 0, "valid plan text stays on the phone screen")
 
     @unittest.skipUnless(CHROME, "needs Chrome")
     def test_click_moves_the_score_and_save_keeps_the_ticks(self):

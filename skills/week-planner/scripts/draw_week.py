@@ -73,17 +73,31 @@ def main(argv=None):
         kind = "Week Review"
     output = args.output or os.path.join(os.path.dirname(os.path.abspath(args.plan)), "%s %s.%s" % (
         kind, plan.days[0].date.isoformat(), "html" if args.html else "pdf"))
+    # A typo in -o must never replace the JSON needed for the review, even via an alias.
+    same_path = os.path.normcase(os.path.realpath(output)) == os.path.normcase(os.path.realpath(args.plan))
+    try:
+        same_path = same_path or os.path.samefile(output, args.plan)
+    except OSError:
+        pass                                    # a new output file has no identity yet
+    if same_path:
+        print("The output would overwrite the plan file. Choose a different PDF or HTML filename.", file=sys.stderr)
+        return 2
     folder = os.path.dirname(os.path.abspath(output))
     if not os.path.isdir(folder):
-        print("The folder for the PDF does not exist: %s" % folder, file=sys.stderr)
+        print("The folder for the output does not exist: %s" % folder, file=sys.stderr)
         return 2
-    if args.html:
-        with open(args.plan, encoding="utf-8") as handle:
-            raw = json.load(handle)
-        page.write(plan, raw, os.path.basename(args.plan), owner, output)
-        print("Wrote the page to tick off: %s" % os.path.abspath(output))
-        return 0
-    total = pages.build(plan, columns, owner, output)
+    try:
+        if args.html:
+            with open(args.plan, encoding="utf-8-sig") as handle:
+                raw = json.load(handle)
+            page.write(plan, raw, os.path.basename(args.plan), owner, output)
+            print("Wrote the page to tick off: %s" % os.path.abspath(output))
+            return 0
+        total = pages.build(plan, columns, owner, output)
+    except OSError as err:
+        print("The output could not be written: %s. Choose a writable file in an existing folder." % err,
+              file=sys.stderr)
+        return 2
     print("Drew %d page%s: %s" % (total, "" if total == 1 else "s", os.path.abspath(output)))
     return 0
 

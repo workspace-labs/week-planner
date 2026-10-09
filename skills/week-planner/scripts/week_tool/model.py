@@ -127,7 +127,7 @@ class Plan(object):
 
 def load(path):
     try:
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8-sig") as handle:
             data = json.load(handle)
     except (OSError, ValueError) as err:
         raise PlanError(["The plan file could not be read: %s." % err])
@@ -177,8 +177,11 @@ def _day(raw, number, problems):
     date = None
     try:
         date = datetime.date.fromisoformat(raw.get("date", ""))
+        if date.isoformat() != raw.get("date"):
+            raise ValueError("Use YYYY-MM-DD")
         where = day_name(date)
     except (TypeError, ValueError):
+        date = None
         problems.append('%s needs a "date" written YYYY-MM-DD; it is %s.' % (where, describe(raw.get("date"))))
     free = _hours(raw.get("free_hours"), '%s: "free_hours"' % where, problems, allow_zero=True)
     off = raw.get("off", False)
@@ -395,7 +398,7 @@ def _hours(value, where, problems, allow_zero=False):
     if isinstance(value, bool) or not isinstance(value, (int, float)) or (isinstance(value, float) and not math.isfinite(value)):
         problems.append("%s must be a number of hours (0.5 is half an hour); it is %s." % (where, describe(value)))
         return None
-    if value < 0 or (value == 0 and not allow_zero) or value > 16 or abs(value * 4 - round(value * 4)) > 1e-9:
+    if value < (0 if allow_zero else 0.25) or value > 16 or abs(value * 4 - round(value * 4)) > 1e-9:
         shown = value if abs(value) <= 1000 else "far too %s" % ("large" if value > 0 else "small")
         problems.append("%s must be between %s and 16, in quarter hours (0.25, 0.5, 0.75 ...); it is %s."
                         % (where, "0" if allow_zero else "0.25", shown))

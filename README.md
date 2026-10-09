@@ -14,7 +14,7 @@ done and carries the rest over.
 It works in every agent and app: Claude Code, the Claude app and website, Codex and others. It asks you
 for your tasks everywhere, and also reads your Backloop board (read only) where one exists.
 
-**Version 0.4.1** · **101 tests, all passing** · **0.1.1 reviewed by a second agent: APPROVED; 0.2.0 to 0.4.0 not reviewed yet** · [the proof](#proof-how-we-know-it-works)
+**Version 0.4.2** · **113 tests, all passing on Windows** · [Windows review and fixes](docs/windows-review.md) · [the proof](#proof-how-we-know-it-works)
 
 ---
 
@@ -51,6 +51,10 @@ the goals move at once. **Save plan** downloads the plan file with your ticks, f
 file that needs no internet. **On a phone** it opens on today: tabs for the days, today's tasks as big cards
 for your thumb, and the score with Save plan always at the bottom.
 
+Waiting decisions and carried-over work also appear below the HTML board; the lists update as you tick.
+Weekend goal details stay below their board. Browser ticks belong to that exact source plan: use Save
+plan before regenerating it to keep progress that exists only in your browser.
+
 ![The HTML page on an iPhone: today first with day tabs and ticks, the Top goals page, and the advice page, with the score and Save plan at the bottom](media/week-planner-iphone.png)
 
 The look is the WorkSpace Labs house look, the same family as the workflow-project PDF: Plus Jakarta Sans,
@@ -60,6 +64,8 @@ a light ground, one blue accent, red only for "waiting on you".
 
 The drawing tool needs Python 3.9 or newer and `reportlab` (already in Claude's and ChatGPT's sandboxes;
 elsewhere `python3 -m pip install reportlab`).
+
+On Windows, use `python` in place of `python3` when needed. UTF-8 JSON with or without a BOM works.
 
 **Claude Code, Codex and other agents**, in one line:
 
@@ -99,24 +105,27 @@ The plan file format is in `skills/week-planner/references/plan-format.md`.
 
 We do not call it built until it is proven. Everything below can be checked.
 
-### 101 automated tests, all passing
+### 113 automated tests, all passing
 
 Run them yourself (Python 3.9+ and `reportlab`; `poppler` for the checks that read the PDFs back; Google
-Chrome for the one that clicks the HTML page in a real browser):
+Chrome for the checks that run the HTML page in a real browser):
 
 ```bash
 python3 -B -m unittest discover -s tests
 ```
 
-On version 0.4.1 (Python 3.9.6, ReportLab 5.0.0, Chrome headless): **101 passed, 0 skipped, 0 failed.**
+On version 0.4.2 (Windows, Python 3.12.10, ReportLab 5.0.1, Chrome 143, Poppler 26.09.0):
+**113 passed, 0 skipped, 0 failed.** The updated release has not been rerun on macOS or Linux.
+Chrome is found in standard Windows locations, or set `CHROME_BIN` to its path. Put current Poppler's
+`bin` directory on `PATH` to run the PDF text and preview checks.
 
 | What is tested | Tests |
 |---|---:|
-| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates, NaN or huge hours, carried-over tasks and their links, goals with their why, done-when, risk, first step, project and verdict, and advice whose "because" must be the person's own words | 53 |
+| The plan rules and their plain-language refusals: an overfilled day, no buffer, too much for a weekend, a half-marked review, emoji, wrong dates (including compact dates), NaN, tiny or huge hours, carried-over tasks and their links, goals with their why, done-when, risk, first step, project and verdict, and advice whose "because" must be the person's own words | 55 |
 | The board's geometry, judged by independent rectangle maths: every card inside its column, nothing overlapping, every line fits, "1 h" never split, columns end together under the busiest day | 9 |
-| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, the command line and its exit codes, the footer, the planned totals, a page preview that never overwrites a file, the focus under the board (never touching it) or on its own page when the week is packed, the Top goals and advice pages (their words, a page too full or a word too wide refused, "and N more" past 8 cards) | 33 |
-| The HTML page: its default name, no network, the plan's words shown as text never markup, a refused plan writes nothing, and in a real Chrome: a click moves the score, Save plan hands back the plan file with only the ticks changed, and that file draws again; at a phone's width it opens on today, a tick there ticks the board too, the bar stays at the bottom, and nothing runs off the side | 6 |
-| **Total** | **101** |
+| The whole tool, end to end: drawn PDFs read back word by word with `pdftotext`, command exit codes, source JSON protected against overwrite and hard links, Windows BOM files, output errors, the footer, planned totals, portable previews that never overwrite a file, focus placement, Top goals and advice page fit, and "and N more" past 8 cards | 37 |
+| The HTML page: its default name, no network, safe text, no writes on refusal; real Chrome clicks and saved JSON; ticks survive reopening, edited or newly reviewed plans do not inherit old marks; visible carry-over and weekend goal details; phone today view, synchronized ticks, fixed bar and no side overflow, including long titles | 12 |
+| **Total** | **113** |
 
 ### Reviewed by a second agent
 
@@ -124,7 +133,9 @@ A second AI agent, Codex, reviewed the skill in a fresh session: it had not watc
 everything from the repository itself. Over five rounds it found **7 real problems**. Each was fixed with a
 test that failed before the fix and passes after it, and on 5 October 2026 its verdict was **APPROVED**. That review covers 0.1.1; the 0.2.0 layout change
 (short columns, focus under the board) 0.3.0 (Top goals and advice pages, the HTML page) and 0.4.0 (the phone
-view) have not been reviewed yet.
+view) were not covered by that original review. The independent Windows review of 0.4.2 covers these
+features through automated tests and scripted examples; its scope and limits are in
+[the Windows review](docs/windows-review.md).
 
 | Finding | What was wrong | Closed in round |
 |---|---|---:|
@@ -152,17 +163,25 @@ saw on that board are what 0.2.0 fixes.
 
 ### Not tested yet
 
-So you know exactly what the proof covers:
+The 0.4.2 Windows review covers 113 automated tests and scripted week, review and weekend examples.
+Goal fields, advice, carry-over, review scores, generated PDFs, and desktop and phone layouts in Chrome
+were checked. The following still need direct testing:
 
-- The skill being picked up on its own inside the native Claude and Codex apps, and their clickable answers.
-- Uploading the zip to the Claude app.
-- The chat-only table, where code cannot run.
-- A real Backloop board (a made-up board was used).
-- 0.3.0 in a real planning conversation: the new goal questions and the advice were tried on the owner in
-  chat before the build, not yet through the installed skill.
-- The HTML page in Safari, Firefox and on a real iPhone (Chrome is tested, including at a phone's width;
-  Safari showed the demo it was built from). How an iPhone opens the file (from Files, or in Safari) is not
-  tested yet.
+- **Native app discovery and questions:** the skill being picked up automatically inside Claude and
+  Codex, and their native clickable answers.
+- **Claude app upload:** uploading and using the rebuilt skill ZIP in the Claude app. Its contents and
+  extracted drawing tool were checked locally.
+- **Chat-only use:** following the table flow in an app where code cannot run.
+- **A live Backloop board:** reading real project cards. Earlier tests used a made-up board.
+- **An unscripted planning conversation through the installed skill:** asking and polishing the new
+  goal answers, receiving the person's confirmations, and writing advice from those answers. Scripted
+  examples now cover the resulting goal fields and advice; the owner's earlier chat trial covered the
+  questions before the build.
+- **Other browsers and a physical iPhone:** the generated HTML in Safari and Firefox; opening it from
+  Files or Safari on an iPhone; tapping tasks and saving the plan there. Chrome's phone layout was tested
+  on Windows. Safari has only previewed the design demo.
+- **The corrected release on macOS and Linux:** version 0.4.2 has been run on Windows. The earlier Mac
+  test result was for 0.4.1.
 
 ## Limits
 

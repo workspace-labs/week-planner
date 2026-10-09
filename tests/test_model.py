@@ -54,6 +54,18 @@ class Refuses(unittest.TestCase):
         data["days"][1]["items"].append({"title": "Another job", "hours": 2})
         self.refused(data, "Mon 5 Oct is overfilled", "4 h planned", "3 h free")
 
+    def test_dates_must_use_the_documented_format_on_every_python_version(self):
+        for date in ("20261004", "2026-W40-7"):
+            with self.subTest(date=date):
+                data = support.plan()
+                data["days"][0]["date"] = date
+                self.refused(data, "YYYY-MM-DD")
+
+    def test_tiny_positive_hours_cannot_become_a_zero_length_buffer(self):
+        data = support.plan()
+        data["days"][2]["items"][0]["hours"] = 1e-12
+        self.refused(data, "between 0.25 and 16")
+
     def test_week_without_buffer(self):
         data = support.plan()
         data["days"][2]["items"] = []

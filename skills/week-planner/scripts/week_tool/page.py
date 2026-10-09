@@ -7,6 +7,7 @@ and it shows every word of the plan as text, never as markup.
 """
 
 import base64
+import hashlib
 import json
 import os
 
@@ -41,7 +42,8 @@ def view(plan, raw, plan_name, brand):
         days.append({"date": day.date.isoformat(), "name": name.upper(), "number": number, "month": month,
                      "free": day.free_hours, "off": day.off,
                      "items": [{"title": i.title, "kind": i.kind, "stage": i.stage or "", "project": i.project,
-                                "hours": i.hours, "time": hours_text(i.hours), "done": bool(i.done)} for i in day.items]})
+                                "hours": i.hours, "time": hours_text(i.hours), "done": bool(i.done),
+                                "carry": plan.carry_source(i)} for i in day.items]})
     logo = ""
     if brand.logo:
         with open(brand.logo, "rb") as handle:
@@ -50,6 +52,10 @@ def view(plan, raw, plan_name, brand):
             "goalPage": plan.goal_page, "goals": goals, "days": days, "reviewed": plan.reviewed,
             "advice": [{"title": a.title, "text": a.text, "because": a.because, "check": a.check} for a in plan.advice],
             "brand": {"name": brand.name, "accent": brand.accent, "website": brand.website, "logo": logo},
+            "carried": plan.carried_over,
+            # Source marks are part of the identity: a freshly reviewed file wins over old browser ticks.
+            "stateKey": hashlib.sha256(json.dumps(raw, sort_keys=True, separators=(",", ":"))
+                                       .encode("utf-8")).hexdigest(),
             "version": VERSION, "file": plan_name, "raw": raw}
 
 
@@ -99,13 +105,16 @@ button { font: inherit; color: inherit; }
         border: 1px solid var(--tag-line); padding: 4px 11px; border-radius: 99px; white-space: nowrap; }
 .pill.reached { background: var(--accent); border-color: var(--accent); color: var(--white); }
 .pill.not-yet, .pill.check { background: var(--white); border-color: var(--box-stroke); color: var(--ink-soft); }
-h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px; line-height: 1.05; }
+h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px; line-height: 1.05; overflow-wrap: anywhere; }
 .sub { font-size: 12.5px; color: var(--ink-soft); margin-top: 6px; font-weight: 500; }
 .footer { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--line-soft); display: flex; justify-content: space-between;
           gap: 12px; font-size: 10px; color: var(--ink-faint); }
+.footer span:first-child { min-width: 0; overflow-wrap: anywhere; }
+.footer span:last-child { flex-shrink: 0; }
 .eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .16em; color: var(--accent); }
 .band { margin-top: 14px; background: var(--goal-bg); border: 1px solid var(--tag-line); border-radius: 10px; padding: 9px 16px;
         display: flex; gap: 14px; align-items: center; font-size: 13px; font-weight: 600; }
+.band > span:last-child { min-width: 0; overflow-wrap: anywhere; }
 .scroll { flex: 1; display: flex; overflow-x: auto; margin-top: 14px; }
 .board { flex: 1; display: grid; gap: 10px; min-width: 0; }
 .day { background: var(--space); border: 1px solid var(--line-soft); border-radius: 12px; padding: 12px 9px 10px; display: flex; flex-direction: column; min-height: 300px; }
@@ -144,11 +153,22 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
 .save { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--white); background: var(--accent); border: 0; border-radius: 8px; padding: 9px 16px; cursor: pointer; }
 .saved { font-size: 11px; color: var(--ink-soft); }
 .hint { margin: 10px 0 16px; font-size: 11px; color: var(--ink-soft); }
+.focus { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 24px; margin: 18px 0; }
+.focus:empty { display: none; }
+.focus h2 { font-size: 10px; letter-spacing: .12em; color: var(--ink-faint); border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.focus .waiting h2 { color: var(--red); }
+.focus ul { list-style: none; }
+.focus li { font-size: 12px; font-weight: 600; margin-top: 12px; overflow-wrap: anywhere; }
+.focus small { display: block; font-size: 10px; font-weight: 500; color: var(--ink-soft); margin-top: 3px; }
+.weekend-goals { margin: 18px 0; }
+.weekend-goals article { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px; }
+.weekend-goals h2 { font-size: 16px; overflow-wrap: anywhere; }
+.weekend-goals p { font-size: 12px; line-height: 1.5; margin-top: 5px; overflow-wrap: anywhere; }
 .g1 { margin-top: 18px; border: 1px solid var(--box-stroke); border-radius: 14px; overflow: hidden; }
 .g1-head { display: flex; align-items: center; gap: 16px; padding: 14px 22px; background: var(--goal-bg); }
 .g1-body { display: grid; border-top: 1px solid var(--tag-line); }
 .num { font-size: 30px; font-weight: 800; color: var(--accent); line-height: 1; }
-.gtitle { font-size: 20px; font-weight: 800; letter-spacing: -.01em; flex: 1; }
+.gtitle { font-size: 20px; font-weight: 800; letter-spacing: -.01em; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .cell { padding: 14px 20px; }
 .stack { border-right: 1px solid var(--line-soft); }
 .stack .cell + .cell { border-top: 1px solid var(--line-soft); }
@@ -248,14 +268,15 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
 (function () {
   "use strict";
   var V = JSON.parse(document.getElementById("plan").textContent);
-  var KEY = "week-planner " + V.title + " " + V.range;
+  var KEY = "week-planner " + V.stateKey;
   var cards = [];                                 // every item that counts, in board order: {day, index, item}
   V.days.forEach(function (day, d) {
     day.items.forEach(function (item, i) { if (item.kind !== "buffer") cards.push({ day: d, index: i, item: item }); });
   });
   try {                                           // ticks made earlier in this browser come back
     var kept = JSON.parse(localStorage.getItem(KEY) || "null");
-    if (kept && kept.length === cards.length) cards.forEach(function (c, n) { c.item.done = !!kept[n]; });
+    if (Array.isArray(kept) && kept.length === cards.length && kept.every(function (v) { return typeof v === "boolean"; }))
+      cards.forEach(function (c, n) { c.item.done = kept[n]; });
   } catch (e) { /* private window or blocked storage: the page still works, the Save button keeps the ticks */ }
 
   function el(tag, cls, text) {
@@ -399,6 +420,52 @@ h1 { font-size: 34px; font-weight: 800; letter-spacing: -.02em; margin-top: 18px
     squares.textContent = "";
     for (var n = 0; n < total; n++) add(squares, el("i", n < done ? "on" : ""));
   });
+
+  // Keep the same waiting and carry-over summaries as the PDF, including work with no day card.
+  var focus = el("div", "focus");
+  add(body, focus);
+  watchers.push(function () {
+    focus.textContent = "";
+    var reviewing = V.reviewed || cards.some(function (c) { return c.item.done; });
+    function section(heading, entries, cls) {
+      if (!entries.length) return;
+      var list = el("ul"), box = add(el("div", cls), el("h2", "", heading), list);
+      entries.forEach(function (entry) { add(list, add(el("li", "", entry[0]), el("small", "", entry[1]))); });
+      add(focus, box);
+    }
+    function date(c) { var d = V.days[c.day]; return d.name + " " + d.number + " " + d.month; }
+    section("WAITING ON YOU", cards.filter(function (c) { return c.item.kind === "decision" && !c.item.done; })
+      .map(function (c) { return [c.item.title, date(c) + " · " + c.item.time + (reviewing ? " · moves to next week" : "")]; }), "waiting");
+    if (reviewing) {
+      var moving = cards.filter(function (c) { return c.item.kind !== "decision" && !c.item.done; })
+        .map(function (c) { return [c.item.title, date(c)]; });
+      V.carried.forEach(function (text) {
+        if (!cards.some(function (c) { return c.item.carry === text; })) moving.push([text, "from last week, not planned"]);
+      });
+      section("MOVES TO NEXT WEEK", moving);
+    } else {
+      section("CARRIED OVER", V.carried.map(function (text) { return [text, "from last week"]; }));
+    }
+  });
+  if (!V.goalPage && V.goals.length) {
+    var weekendGoals = el("div", "weekend-goals");
+    V.goals.forEach(function (goal) {
+      var box = add(el("article"), el("h2", "", goal.n + ". " + goal.goal), badge(goal, false));
+      [["Why", goal.why], ["Done when", goal.done_when], ["What could stop me", goal.risk], ["First step", goal.first_step]]
+        .forEach(function (f) { if (f[1]) add(box, el("p", "", f[0] + ": " + f[1])); });
+      if (goal.cards.length) {
+        var meta = el("p");
+        add(box, meta);
+        watchers.push(function () {
+          var list = goalCards(goal), done = list.filter(function (i) { return i.done; }).length;
+          meta.textContent = "This week: " + done + " of " + list.length + " done · " +
+            hours(list.reduce(function (a, i) { return a + i.hours; }, 0)) + " · " + goal.span;
+        });
+      }
+      add(weekendGoals, box);
+    });
+    add(body, weekendGoals);
+  }
 
   // ---- page 2: top goals
   function field(label, text, cls) { return text ? add(el("div", cls || "cell"), el("div", "eyebrow", label), el("p", "", text)) : null; }

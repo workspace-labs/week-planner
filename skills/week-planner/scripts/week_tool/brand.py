@@ -28,7 +28,7 @@ def load(path=BRAND_FILE):
     """Reads and checks the brand file. Raises PlanError with plain sentences when it is wrong."""
     where = "The brand file (%s)" % path
     try:
-        with open(path, encoding="utf-8") as handle:
+        with open(path, encoding="utf-8-sig") as handle:
             data = json.load(handle)
     except (OSError, ValueError) as err:
         raise PlanError(["%s could not be read: %s." % (where, err)])

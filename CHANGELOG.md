@@ -7,8 +7,39 @@ All notable changes to this project. The version is `VERSION` in
 
 ### Docs
 
-- README: a **Proof** section: the 66 tests by what they check, the second agent's review and its 7
-  findings, the tries for real, and what is not tested yet. The skill itself is unchanged.
+- README: refresh **Not tested yet** after the Windows review. Separate the verified 113-test suite and
+  scripted goal/advice examples from native app discovery, Claude upload, chat-only use, live Backloop,
+  an unscripted installed-skill conversation, Safari/Firefox/iPhone use and macOS/Linux release checks.
+
+## [0.4.2] - 2026-10-09
+
+### Fixed
+
+- **An edited plan never inherits another task's ticks.** Browser progress is now scoped to the whole
+  source plan, including its review marks, rather than its title, dates and card count. Reopening an
+  unchanged plan still restores its ticks; updated source marks win over old browser progress.
+- **The HTML page keeps the PDF's focus information.** Waiting decisions and carried-over work are now
+  visible, including items with no day card. The lists update as tasks are ticked. Weekend goals show
+  their answers, verdict and counted progress below the board.
+- **The output cannot overwrite its source JSON**, including through a hard link or path alias.
+  Unwritable outputs return a plain command error (exit 2), rather than a Python traceback.
+- **Windows UTF-8 files work.** Plan and brand readers accept an optional UTF-8 BOM, including the HTML
+  export's second read. The documented preview uses Python instead of requiring Bash or `mktemp`.
+- **The same date rules on Python 3.9 and newer.** Compact and ISO-week dates are refused in favor of
+  `YYYY-MM-DD`. Tiny positive item hours can no longer round down to a zero-length buffer.
+- **Long titles stay on a phone's screen.** Titles and goal words that fit the PDF could overflow the
+  HTML page; the title, goal band, goal card and footer now wrap within the available width.
+- Output-folder instructions are applied before writing; reviews first look in the person's chosen
+  plan folder and check the saved plan's dates.
+
+### Tests
+
+- **113 tests passed, zero skipped**, on Windows with Python 3.12.10, ReportLab 5.0.1, Chrome 143 and
+  portable Poppler 26.09.0. Twelve new regressions cover the failures and persistence behavior.
+- Browser tests find Windows Chrome or `CHROME_BIN` and use valid file URIs. The preview test executes
+  the portable documented command without Bash.
+- Scripted week, review and weekend runs preserve the user's output-folder instruction. Their PDFs
+  were rendered and visually inspected. Details: `docs/windows-review.md`.
 
 ## [0.4.1] - 2026-10-09
 

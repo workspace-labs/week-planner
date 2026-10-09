@@ -4,6 +4,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -295,8 +296,9 @@ class Preview(unittest.TestCase):
                 handle.write(b"the person's own file")
             shown = []
             for _ in range(2):
-                done = subprocess.run(["bash", "-c", command.replace("<file>.pdf", pdf)], cwd=work,
-                                      capture_output=True, text=True)
+                args = shlex.split(command.replace("<file>.pdf", pdf))
+                args[0] = sys.executable
+                done = subprocess.run(args, cwd=work, capture_output=True, text=True, encoding="utf-8")
                 self.assertEqual(done.returncode, 0, done.stderr)
                 shown.append(done.stdout.strip())
             with open(mine, "rb") as handle:
@@ -448,6 +450,51 @@ class Booklet(unittest.TestCase):
 
 
 class Command(unittest.TestCase):
+    def test_output_cannot_replace_the_plan_file(self):
+        for html in (False, True):
+            with self.subTest(html=html), tempfile.TemporaryDirectory() as tmp:
+                path = os.path.join(tmp, "plan.json")
+                with open(path, "w", encoding="utf-8") as handle:
+                    json.dump(support.plan(), handle)
+                with open(path, "rb") as handle:
+                    original = handle.read()
+                code, _, stderr = run(path, "-o", path, *(["--html"] if html else []))
+                self.assertEqual(code, 2)
+                self.assertIn("plan file", stderr)
+                with open(path, "rb") as handle:
+                    self.assertEqual(handle.read(), original, "the JSON source is never an output file")
+
+    def test_output_cannot_replace_a_hard_link_to_the_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path, output = os.path.join(tmp, "plan.json"), os.path.join(tmp, "alias.pdf")
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(support.plan(), handle)
+            os.link(path, output)
+            code, _, stderr = run(path, "-o", output)
+            self.assertEqual(code, 2)
+            with open(path, encoding="utf-8") as handle:
+                self.assertEqual(json.load(handle), support.plan())
+
+    def test_utf8_bom_plan_works_for_pdf_and_html(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "plan.json")
+            with open(path, "w", encoding="utf-8-sig") as handle:
+                json.dump(support.plan(), handle)
+            for ext, flags in (("pdf", []), ("html", ["--html"])):
+                with self.subTest(ext=ext):
+                    output = os.path.join(tmp, "plan." + ext)
+                    code, _, stderr = run(path, "-o", output, *flags)
+                    self.assertEqual(code, 0, stderr)
+                    self.assertTrue(os.path.isfile(output))
+
+    def test_unwritable_output_is_a_plain_command_error(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            for flags in ([], ["--html"]):
+                with self.subTest(flags=flags):
+                    code, _, stderr = run(os.path.join(support.EXAMPLES, "weekend.json"), "-o", tmp, *flags)
+                    self.assertEqual(code, 2)
+                    self.assertIn("could not be written", stderr)
+
     def test_check_writes_nothing(self):
         code, stdout, _ = run(os.path.join(support.EXAMPLES, "week.json"), "--check")
         self.assertEqual(code, 0)
