@@ -165,7 +165,9 @@ saw on that board are what 0.2.0 fixes.
 
 The 0.4.2 Windows review covers 113 automated tests and scripted week, review and weekend examples.
 Goal fields, advice, carry-over, review scores, generated PDFs, and desktop and phone layouts in Chrome
-were checked. The following still need direct testing:
+were checked. On 15 October 2026 the owner opened the 0.4.2 HTML page by hand and ticked tasks on his
+own iPhone, on his brother's iPhone, on a Mac and on a Windows PC; it worked as intended on all four.
+The following still need direct testing:
 
 - **Native app discovery and questions:** the skill being picked up automatically inside Claude and
   Codex, and their native clickable answers.
@@ -177,11 +179,8 @@ were checked. The following still need direct testing:
   goal answers, receiving the person's confirmations, and writing advice from those answers. Scripted
   examples now cover the resulting goal fields and advice; the owner's earlier chat trial covered the
   questions before the build.
-- **Other browsers and a physical iPhone:** the generated HTML in Safari and Firefox; opening it from
-  Files or Safari on an iPhone; tapping tasks and saving the plan there. Chrome's phone layout was tested
-  on Windows. Safari has only previewed the design demo.
-- **The corrected release on macOS and Linux:** version 0.4.2 has been run on Windows. The earlier Mac
-  test result was for 0.4.1.
+- **Firefox and Linux:** the generated HTML in Firefox, and the 0.4.2 release on Linux. iPhone, Mac and
+  Windows were tried by hand (above); the automated suite has run on Windows and Mac.
 
 ## Limits
 
