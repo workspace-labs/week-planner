@@ -179,8 +179,9 @@ The following still need direct testing:
   goal answers, receiving the person's confirmations, and writing advice from those answers. Scripted
   examples now cover the resulting goal fields and advice; the owner's earlier chat trial covered the
   questions before the build.
-- **Firefox and Linux:** the generated HTML in Firefox, and the 0.4.2 release on Linux. iPhone, Mac and
-  Windows were tried by hand (above); the automated suite has run on Windows and Mac.
+
+Firefox and Linux are not on the list on purpose: the owner does not expect anyone to use the skill there,
+so they are out of scope rather than pending.
 
 ## Limits
 

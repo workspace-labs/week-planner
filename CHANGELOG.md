@@ -11,7 +11,8 @@ All notable changes to this project. The version is `VERSION` in
   scripted goal/advice examples from native app discovery, Claude upload, chat-only use, live Backloop,
   an unscripted installed-skill conversation, Safari/Firefox/iPhone use and macOS/Linux release checks.
 - README: record the owner's hand test of 2026-10-15. The 0.4.2 HTML page was opened and ticked on two
-  real iPhones, a Mac and a Windows PC and worked on all four; only Firefox and Linux remain untested.
+  real iPhones, a Mac and a Windows PC and worked on all four. Firefox and Linux are declared out of
+  scope by the owner's decision, not left pending.
 
 ## [0.4.2] - 2026-10-09
 
